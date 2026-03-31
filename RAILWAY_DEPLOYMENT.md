@@ -19,6 +19,29 @@ Toto uz je nastavene a nemusis to programovat:
 1. Backend umi cist upload adresar z env promenne UPLOAD_DIR.
 2. PDF se ukladaji do UPLOAD_DIR/pdfs.
 3. Frontend umi cist API adresu z VITE_API_URL.
+4. Pro backend i frontend je pripraven Railway config-as-code v `railway.json`.
+
+## Co je ted automatizovane pres config-as-code
+
+Tyto soubory uz jsou v repozitari:
+
+1. `backend/railway.json`
+2. `frontend/railway.json`
+3. `backend/.env.railway.example`
+4. `frontend/.env.railway.example`
+
+Co se vezme automaticky z `railway.json`:
+
+1. Build command
+2. Start command
+3. Healthcheck path backendu (`/health`)
+4. Restart policy
+
+Co bohuzel nejde plne automatizovat jen kodem a musis to naklikat v Railway:
+
+1. Pripojeni GitHub repozitare a vyber sluzby
+2. Secrets/Variables (DATABASE_URL, JWT_SECRET, FRONTEND_URL, VITE_API_URL)
+3. Pridani a mount Railway Volume (kvuli PDF)
 
 ## Co nemohu udelat za tebe
 
@@ -220,8 +243,8 @@ V Railway pri pridani GitHub repozitare vyber stejne repo a branch `main`, ktero
 V backend service nastav:
 
 1. Root Directory: Radek/webApp/Zakazky/backend
-2. Build Command: npm run build
-3. Start Command: npm start
+2. Build Command: nechat prazdne nebo default (prevezme se z `backend/railway.json`)
+3. Start Command: nechat prazdne nebo default (prevezme se z `backend/railway.json`)
 
 ### D3) Nastaveni backend env promennych
 
@@ -279,8 +302,8 @@ Ocekavany vysledek:
 V frontend service nastav:
 
 1. Root Directory: Radek/webApp/Zakazky/frontend
-2. Build Command: npm run build
-3. Start Command: npm run preview -- --host 0.0.0.0 --port $PORT
+2. Build Command: nechat prazdne nebo default (prevezme se z `frontend/railway.json`)
+3. Start Command: nechat prazdne nebo default (prevezme se z `frontend/railway.json`)
 
 ### E3) Nastaveni frontend env promennych
 
