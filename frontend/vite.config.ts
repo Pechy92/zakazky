@@ -12,4 +12,7 @@ export default defineConfig({
       },
     },
   },
+  preview: {
+    allowedHosts: ['zakazky-production-d9cd.up.railway.app'],
+  },
 });
