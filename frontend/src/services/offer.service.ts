@@ -1,6 +1,18 @@
 import api from './api';
 import { Offer, OfferItem, OfferPdf } from '../types';
 
+const rawApiUrl = import.meta.env.VITE_API_URL as string | undefined;
+
+const resolveBackendBaseUrl = () => {
+  if (rawApiUrl && rawApiUrl.trim()) {
+    const normalized = rawApiUrl.trim().replace(/\/$/, '');
+    return normalized.replace(/\/api$/i, '');
+  }
+
+  // Local fallback when VITE_API_URL is not provided.
+  return `${window.location.protocol}//${window.location.hostname}:3001`;
+};
+
 export const offerService = {
   async getByOrderId(orderId: number) {
     const response = await api.get<Offer[]>(`/offers/order/${orderId}`);
@@ -49,7 +61,7 @@ export const offerService = {
   getPdfPublicUrl(fileUrl: string) {
     if (!fileUrl) return '';
     if (/^https?:\/\//i.test(fileUrl)) return fileUrl;
-    const backendBase = `${window.location.protocol}//${window.location.hostname}:3001`;
+    const backendBase = resolveBackendBaseUrl();
     return `${backendBase}${fileUrl}`;
   },
 };
