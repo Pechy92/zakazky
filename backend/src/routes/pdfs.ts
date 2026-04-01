@@ -94,8 +94,8 @@ router.post('/generate/:offerId', authenticateToken, async (req, res) => {
       SELECT o.*, ord.number as order_number, ord.title as order_title,
              c.name as customer_name, c.ic, c.dic, c.street, c.house_number,
              c.city, c.postal_code, c.email,
-             mc.description as main_category_description,
-             sc.description as subcategory_description,
+             mc.name as main_category_description,
+             sc.name as subcategory_description,
              comb.html_content as combination_html_content,
              tt.html_content as template_html_content
       FROM offers o
