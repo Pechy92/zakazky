@@ -1,6 +1,6 @@
 import express from 'express';
 import pool from '../config/database';
-import { authenticateToken } from '../middleware/auth';
+import { authenticateToken, authorizeRoles } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -301,7 +301,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
 });
 
 // Smazat nabídku
-router.delete('/:id', authenticateToken, async (req, res) => {
+router.delete('/:id', authenticateToken, authorizeRoles('admin', 'manager'), async (req, res) => {
   const client = await pool.connect();
   
   try {

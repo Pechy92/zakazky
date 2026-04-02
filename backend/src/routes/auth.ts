@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import pool from '../config/database';
 import { z } from 'zod';
+import { authenticateToken, authorizeRoles } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -78,7 +79,7 @@ router.post('/login', async (req, res) => {
 });
 
 // Registrace (pouze pro adminy/manažery)
-router.post('/register', async (req, res) => {
+router.post('/register', authenticateToken, authorizeRoles('admin', 'manager'), async (req, res) => {
   try {
     const { email, password, fullName, role } = req.body;
 

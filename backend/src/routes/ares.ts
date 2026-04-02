@@ -1,5 +1,6 @@
 import express from 'express';
 import axios from 'axios';
+import { authenticateToken } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -74,7 +75,7 @@ async function handleSearchByIc(req: express.Request, res: express.Response) {
   }
 }
 
-router.get('/search/:ic', handleSearchByIc);
-router.get('/ico/:ic', handleSearchByIc);
+router.get('/search/:ic', authenticateToken, handleSearchByIc);
+router.get('/ico/:ic', authenticateToken, handleSearchByIc);
 
 export default router;

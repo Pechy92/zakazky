@@ -65,7 +65,12 @@ app.use((req, res, next) => {
 // Statické soubory (PDF)
 app.use('/uploads', express.static(UPLOAD_DIR));
 
-// Routes BEZ rate limiting (dočasně pro debugging problému)
+// Rate limiting pro všechna API volání
+app.use('/api/', apiLimiter);
+
+// Přísnější rate limiting pro login (musí být před obecnými auth routes)
+app.use('/api/auth/login', loginLimiter);
+
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/customers', customerRoutes);

@@ -3,6 +3,13 @@
 # Skript pro inicializaci databáze
 # Použití: ./init-database.sh [DATABASE_URL]
 
+set -e
+
+ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCHEMA_FILE="$ROOT_DIR/database-schema.sql"
+MIGRATIONS_DIR="$ROOT_DIR/backend/src/migrations"
+CREATE_USERS_SCRIPT="$ROOT_DIR/backend/create-default-users.js"
+
 if [ -z "$1" ]; then
     # Pokusit se načíst z .env souboru
     if [ -f "backend/.env" ]; then
@@ -36,22 +43,28 @@ if ! command -v psql &> /dev/null; then
     exit 1
 fi
 
-# Spuštění SQL skriptu
-echo "📊 Vytvářím tabulky..."
-psql "$DATABASE_URL" < database-schema.sql
+echo "📊 Vytvářím základní schéma..."
+psql -v ON_ERROR_STOP=1 "$DATABASE_URL" -f "$SCHEMA_FILE"
 
-if [ $? -eq 0 ]; then
-    echo ""
-    echo "✅ Databáze úspěšně inicializována!"
-    echo ""
-    echo "Výchozí přihlašovací údaje:"
-    echo "  Admin:    admin@example.com / admin123"
-    echo "  Manager:  manager@example.com / manager123"
-    echo "  User:     user@example.com / user123"
-    echo ""
-    echo "⚠️  Změňte hesla po prvním přihlášení!"
-else
-    echo ""
-    echo "❌ Chyba při inicializaci databáze"
-    exit 1
-fi
+echo ""
+echo "🧩 Spouštím SQL migrace..."
+for migration in "$MIGRATIONS_DIR"/*.sql; do
+    if [ -f "$migration" ]; then
+        echo "  -> $(basename "$migration")"
+        psql -v ON_ERROR_STOP=1 "$DATABASE_URL" -f "$migration"
+    fi
+done
+
+echo ""
+echo "👤 Vytvářím výchozí uživatele..."
+(cd "$ROOT_DIR/backend" && DATABASE_URL="$DATABASE_URL" node "$CREATE_USERS_SCRIPT")
+
+echo ""
+echo "✅ Databáze úspěšně inicializována!"
+echo ""
+echo "Výchozí přihlašovací údaje:"
+echo "  Admin:    admin@example.com / admin123"
+echo "  Manager:  manager@example.com / manager123"
+echo "  User:     user@example.com / user123"
+echo ""
+echo "⚠️  Změňte hesla po prvním přihlášení!"

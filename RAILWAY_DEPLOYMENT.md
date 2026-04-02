@@ -229,6 +229,23 @@ V Railway pri pridani GitHub repozitare vyber stejne repo a branch `main`, ktero
 2. V Variables najdi DATABASE_URL.
 3. Tuto hodnotu budes kopirovat do backend service.
 
+### C3) Internal vs Public DB adresa (dulezite)
+
+Railway ukazuje vice endpointu. Pouzivej je takto:
+
+1. Pro backend bezici v Railway: pouzij internal DATABASE_URL z PostgreSQL service.
+2. Pro spusteni init skriptu z tveho Macu: pouzij public TCP endpoint.
+
+Priklad pro lokalni init z Macu (uprav heslo):
+
+1. cd /Users/martin/Desktop/Práce/Radek/webApp/Zakázky
+2. ./init-database.sh "postgresql://postgres:<HESLO>@interchange.proxy.rlwy.net:26140/railway?sslmode=require"
+
+Poznamka:
+
+1. Endpoint postgres.railway.internal funguje jen uvnitr Railway site.
+2. Z lokalniho pocitace je potreba public endpoint (interchange.proxy.rlwy.net + port).
+
 ## Faze D: Backend service
 
 ### D1) Pridani backendu z GitHub

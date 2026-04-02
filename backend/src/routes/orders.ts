@@ -1,6 +1,6 @@
 import express from 'express';
 import pool from '../config/database';
-import { authenticateToken } from '../middleware/auth';
+import { authenticateToken, authorizeRoles } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -123,6 +123,23 @@ router.post('/', authenticateToken, async (req, res) => {
     const { title, customerId, statusId, assignedToUserId } = req.body;
     const userId = (req as any).user.id;
 
+    if (!title || !String(title).trim()) {
+      return res.status(400).json({ error: 'Název zakázky je povinný' });
+    }
+
+    if (!customerId) {
+      return res.status(400).json({ error: 'Zákazník je povinný' });
+    }
+
+    const customerExistsResult = await pool.query(
+      'SELECT id FROM customers WHERE id = $1 LIMIT 1',
+      [customerId]
+    );
+
+    if (customerExistsResult.rows.length === 0) {
+      return res.status(400).json({ error: 'Vybraný zákazník neexistuje. Obnovte stránku a vyberte zákazníka znovu.' });
+    }
+
     // Výchozí stav zakázky: "Nová zakázka"
     // Pokud ve starších datech chybí, automaticky ji založíme.
     let resolvedStatusId = statusId;
@@ -200,6 +217,9 @@ router.post('/', authenticateToken, async (req, res) => {
     if (error.code === '23505') {
       return res.status(400).json({ error: 'Zakázka s tímto číslem již existuje' });
     }
+    if (error.code === '23503') {
+      return res.status(400).json({ error: 'Neplatný odkaz na zákazníka/stav/uživatele. Obnovte stránku a zkuste to znovu.' });
+    }
     res.status(500).json({ error: 'Chyba při vytváření zakázky' });
   }
 });
@@ -263,7 +283,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-router.delete('/:id', authenticateToken, async (req, res) => {
+router.delete('/:id', authenticateToken, authorizeRoles('admin', 'manager'), async (req, res) => {
   try {
     const { id } = req.params;
     await pool.query('DELETE FROM orders WHERE id = $1', [id]);

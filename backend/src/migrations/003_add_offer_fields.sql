@@ -7,8 +7,22 @@ ALTER TABLE offers ADD COLUMN IF NOT EXISTS note TEXT;
 ALTER TABLE offers ADD COLUMN IF NOT EXISTS text_template_id INTEGER REFERENCES text_templates(id);
 
 -- Přidání foreign key pro kategorie
-ALTER TABLE offers ADD CONSTRAINT offers_main_category_fkey 
-  FOREIGN KEY (main_category_code) REFERENCES main_categories(code) ON DELETE SET NULL;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'offers_main_category_fkey'
+  ) THEN
+    ALTER TABLE offers ADD CONSTRAINT offers_main_category_fkey
+      FOREIGN KEY (main_category_code) REFERENCES main_categories(code) ON DELETE SET NULL;
+  END IF;
+END $$;
 
-ALTER TABLE offers ADD CONSTRAINT offers_subcategory_fkey 
-  FOREIGN KEY (subcategory_code) REFERENCES subcategories(code) ON DELETE SET NULL;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'offers_subcategory_fkey'
+  ) THEN
+    ALTER TABLE offers ADD CONSTRAINT offers_subcategory_fkey
+      FOREIGN KEY (subcategory_code) REFERENCES subcategories(code) ON DELETE SET NULL;
+  END IF;
+END $$;
