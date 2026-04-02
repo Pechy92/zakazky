@@ -552,7 +552,7 @@ function Offers() {
       </div>
 
       {selectedOrderId && (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-white rounded-lg shadow overflow-x-auto">
           {offers.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               Pro tuto zakázku zatím neexistují žádné nabídky

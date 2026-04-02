@@ -78,11 +78,11 @@ function OrderDetail() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div className="flex items-center space-x-4">
+      <div className="flex justify-between items-start">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
           <button
             onClick={() => navigate('/orders')}
-            className="flex items-center space-x-2 text-gray-600 hover:text-gray-900"
+            className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 shrink-0"
           >
             <FiArrowLeft className="w-5 h-5" />
             <span>Zpět na zakázky</span>
@@ -161,7 +161,7 @@ function OrderDetail() {
                 Zatím žádné nabídky
               </div>
             ) : (
-              <div className="overflow-hidden">
+              <div className="overflow-x-auto">
                 <table className="min-w-full table-fixed divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>

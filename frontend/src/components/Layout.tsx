@@ -28,7 +28,7 @@ function Layout() {
               />
             </div>
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-700">{user?.fullName}</span>
+              <span className="hidden sm:inline text-sm text-gray-700">{user?.fullName}</span>
               <button
                 onClick={logout}
                 className="flex items-center space-x-2 text-gray-600 hover:text-gray-900"
