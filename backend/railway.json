@@ -3,7 +3,11 @@
   "build": {
     "builder": "RAILPACK",
     "buildCommand": "npm run build",
-    "watchPatterns": ["src/**", "package.json", "tsconfig.json"]
+    "watchPatterns": [
+      "Radek/webApp/Zakázky/backend/src/**",
+      "Radek/webApp/Zakázky/backend/package.json",
+      "Radek/webApp/Zakázky/backend/tsconfig.json"
+    ]
   },
   "deploy": {
     "startCommand": "npm start",

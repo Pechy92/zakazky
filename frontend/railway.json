@@ -3,7 +3,12 @@
   "build": {
     "builder": "RAILPACK",
     "buildCommand": "npm run build",
-    "watchPatterns": ["src/**", "package.json", "vite.config.ts", "tsconfig.json"]
+    "watchPatterns": [
+      "Radek/webApp/Zakázky/frontend/src/**",
+      "Radek/webApp/Zakázky/frontend/package.json",
+      "Radek/webApp/Zakázky/frontend/vite.config.ts",
+      "Radek/webApp/Zakázky/frontend/tsconfig.json"
+    ]
   },
   "deploy": {
     "restartPolicyType": "ON_FAILURE",
