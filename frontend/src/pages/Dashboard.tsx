@@ -3,14 +3,16 @@ import { orderService } from '../services/order.service';
 import { DashboardStat } from '../types';
 import { FiEye, FiEyeOff } from 'react-icons/fi';
 
+type YearFilter = number | 'all';
+
 function Dashboard() {
   const [stats, setStats] = useState<DashboardStat[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAmounts, setShowAmounts] = useState(false);
-  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [selectedYear, setSelectedYear] = useState<YearFilter>(new Date().getFullYear());
 
   useEffect(() => {
-    loadStats(selectedYear);
+    loadStats(selectedYear === 'all' ? undefined : selectedYear);
   }, [selectedYear]);
 
   const loadStats = async (year?: number) => {
@@ -79,9 +81,10 @@ function Dashboard() {
         <div className="flex items-center gap-3">
           <select
             value={selectedYear}
-            onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}
+            onChange={(e) => setSelectedYear(e.target.value === 'all' ? 'all' : parseInt(e.target.value, 10))}
             className="px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
+            <option value="all">Vše</option>
             {yearOptions.map((year) => (
               <option key={year} value={year}>
                 Rok {year}
