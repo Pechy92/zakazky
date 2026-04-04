@@ -519,18 +519,18 @@ function Offers() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">Nabídky</h1>
+        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Nabídky</h1>
         <button 
           onClick={() => {
             setFormData({ ...formData, orderId: selectedOrderId });
             setIsModalOpen(true);
           }}
           disabled={!selectedOrderId}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
         >
-          <FiPlus /> Nová nabídka
+          <FiPlus /> <span className="hidden sm:inline">Nová nabídka</span>
         </button>
       </div>
 
@@ -1039,11 +1039,11 @@ function OffersList({ offers, printingOfferId, onView, onEdit, onPrint }: {
 
   if (showCards) {
     return (
-      <div className="space-y-3">
+      <div className="space-y-2">
         {offers.map((offer) => (
           <div
             key={offer.id}
-            className="bg-white rounded-lg shadow p-4"
+            className="bg-white rounded-lg shadow p-3"
           >
             <div className="flex justify-between items-start">
               <div className="flex-1 min-w-0">

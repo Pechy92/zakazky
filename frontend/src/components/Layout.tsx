@@ -21,12 +21,12 @@ function Layout() {
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex justify-between items-center h-12 sm:h-16">
             <div className="flex items-center">
               <img
                 src="/cernystrnadlogo.png"
                 alt="Černý Strnad"
-                className="h-10"
+                className="h-7 sm:h-10"
               />
             </div>
             <div className="flex items-center space-x-3">
@@ -81,8 +81,8 @@ function Layout() {
           </nav>
         </aside>
 
-        <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-          <nav className="md:hidden mb-4 flex gap-2 overflow-x-auto pb-1">
+        <main className="flex-1 px-3 sm:px-6 lg:px-8 py-3 sm:py-6">
+          <nav className="md:hidden mb-3 flex gap-1.5 overflow-x-auto pb-1">
             {navigation
               .filter((item) => !item.fullAccessOnly || hasFullAccess)
               .map((item) => {
@@ -92,7 +92,7 @@ function Layout() {
                   <Link
                     key={item.path}
                     to={item.path}
-                    className={`shrink-0 flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium ${
+                    className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium ${
                       isActive
                         ? 'bg-primary-50 text-primary-700'
                         : 'bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-gray-200'

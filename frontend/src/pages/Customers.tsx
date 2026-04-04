@@ -177,20 +177,20 @@ function Customers() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">Zákazníci</h1>
+        <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Zákazníci</h1>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+          className="flex items-center space-x-1.5 px-3 py-1.5 sm:px-4 sm:py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 text-sm"
         >
           <FiPlus className="w-4 h-4" />
-          <span>Nový zákazník</span>
+          <span className="hidden sm:inline">Nový zákazník</span>
         </button>
       </div>
 
-      <div className="bg-white rounded-lg shadow p-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">Vyhledávání</label>
+      <div className="bg-white rounded-lg shadow p-3 sm:p-4">
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">Vyhledávání</label>
         <input
           type="text"
           value={searchTerm}
@@ -468,11 +468,11 @@ function CustomersList({ customers, onEdit, onNavigate }: {
 
   if (showCards) {
     return (
-      <div className="space-y-3">
+      <div className="space-y-2">
         {customers.map((customer) => (
           <div
             key={customer.id}
-            className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md transition-shadow"
+            className="bg-white rounded-lg shadow p-3 cursor-pointer hover:shadow-md transition-shadow"
             onClick={() => onNavigate(customer.id!)}
           >
             <div className="flex justify-between items-start">
