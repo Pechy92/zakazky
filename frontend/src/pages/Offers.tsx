@@ -1025,17 +1025,9 @@ function OffersList({ offers, printingOfferId, onView, onEdit, onPrint }: {
   onEdit: (offer: Offer) => void;
   onPrint: (id: number) => void;
 }) {
-  const { mobileView } = useUIStore();
-  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
+  const { viewMode } = useUIStore();
 
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 767px)');
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
-
-  const showCards = mobileView || isMobile;
+  const showCards = viewMode === 'cards';
 
   if (showCards) {
     return (

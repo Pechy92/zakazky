@@ -1,17 +1,24 @@
 import { create } from 'zustand';
 
+type ViewMode = 'cards' | 'table';
+
 interface UIState {
-  mobileView: boolean;
-  toggleMobileView: () => void;
+  viewMode: ViewMode;
+  toggleViewMode: () => void;
 }
 
-export const useUIStore = create<UIState>((set) => ({
-  mobileView: typeof window !== 'undefined' && localStorage.getItem('mobileView') === 'true',
+const getDefault = (): ViewMode => {
+  const stored = localStorage.getItem('viewMode') as ViewMode | null;
+  if (stored === 'cards' || stored === 'table') return stored;
+  return window.innerWidth < 768 ? 'cards' : 'table';
+};
 
-  toggleMobileView: () =>
+export const useUIStore = create<UIState>((set) => ({
+  viewMode: getDefault(),
+  toggleViewMode: () =>
     set((state) => {
-      const next = !state.mobileView;
-      localStorage.setItem('mobileView', String(next));
-      return { mobileView: next };
+      const next: ViewMode = state.viewMode === 'cards' ? 'table' : 'cards';
+      localStorage.setItem('viewMode', next);
+      return { viewMode: next };
     }),
 }));

@@ -708,17 +708,9 @@ function OrdersList({ orders, onEdit, onNavigate, formatCurrency }: {
   onNavigate: (id: number) => void;
   formatCurrency: (n: number) => string;
 }) {
-  const { mobileView } = useUIStore();
-  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
+  const { viewMode } = useUIStore();
 
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 767px)');
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
-
-  const showCards = mobileView || isMobile;
+  const showCards = viewMode === 'cards';
 
   if (showCards) {
     return (

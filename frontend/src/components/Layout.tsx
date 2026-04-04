@@ -6,7 +6,7 @@ import { FiLogOut, FiHome, FiFileText, FiUsers, FiSettings, FiUserCheck, FiSmart
 function Layout() {
   const location = useLocation();
   const { user, logout } = useAuthStore();
-  const { mobileView, toggleMobileView } = useUIStore();
+  const { viewMode, toggleViewMode } = useUIStore();
   const hasFullAccess = user?.role === 'admin' || user?.role === 'manager';
 
   const navigation = [
@@ -31,16 +31,16 @@ function Layout() {
             </div>
             <div className="flex items-center space-x-3">
               <button
-                onClick={toggleMobileView}
+                onClick={toggleViewMode}
                 className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs border transition-colors ${
-                  mobileView
+                  viewMode === 'cards'
                     ? 'bg-primary-50 border-primary-300 text-primary-700'
                     : 'border-gray-200 text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
-                title={mobileView ? 'Přepnout na stolní zobrazení' : 'Přepnout na mobilní zobrazení'}
+                title={viewMode === 'cards' ? 'Přepnout na stolní zobrazení' : 'Přepnout na mobilní zobrazení'}
               >
-                {mobileView ? <FiMonitor className="w-3.5 h-3.5" /> : <FiSmartphone className="w-3.5 h-3.5" />}
-                <span className="hidden sm:inline">{mobileView ? 'Stolní' : 'Mobilní'}</span>
+                {viewMode === 'cards' ? <FiMonitor className="w-3.5 h-3.5" /> : <FiSmartphone className="w-3.5 h-3.5" />}
+                <span className="hidden sm:inline">{viewMode === 'cards' ? 'Stolní' : 'Mobilní'}</span>
               </button>
               <span className="hidden sm:inline text-sm text-gray-700">{user?.fullName}</span>
               <button
@@ -99,7 +99,7 @@ function Layout() {
                     }`}
                   >
                     <Icon className="w-4 h-4" />
-                    <span>{item.name}</span>
+                    <span className="hidden sm:inline">{item.name}</span>
                   </Link>
                 );
               })}
