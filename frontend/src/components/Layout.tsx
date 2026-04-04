@@ -1,10 +1,12 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { FiLogOut, FiHome, FiFileText, FiUsers, FiSettings, FiUserCheck } from 'react-icons/fi';
+import { useUIStore } from '../store/uiStore';
+import { FiLogOut, FiHome, FiFileText, FiUsers, FiSettings, FiUserCheck, FiSmartphone, FiMonitor } from 'react-icons/fi';
 
 function Layout() {
   const location = useLocation();
   const { user, logout } = useAuthStore();
+  const { mobileView, toggleMobileView } = useUIStore();
   const hasFullAccess = user?.role === 'admin' || user?.role === 'manager';
 
   const navigation = [
@@ -27,7 +29,19 @@ function Layout() {
                 className="h-10"
               />
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={toggleMobileView}
+                className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs border transition-colors ${
+                  mobileView
+                    ? 'bg-primary-50 border-primary-300 text-primary-700'
+                    : 'border-gray-200 text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+                title={mobileView ? 'Přepnout na stolní zobrazení' : 'Přepnout na mobilní zobrazení'}
+              >
+                {mobileView ? <FiMonitor className="w-3.5 h-3.5" /> : <FiSmartphone className="w-3.5 h-3.5" />}
+                <span className="hidden sm:inline">{mobileView ? 'Stolní' : 'Mobilní'}</span>
+              </button>
               <span className="hidden sm:inline text-sm text-gray-700">{user?.fullName}</span>
               <button
                 onClick={logout}

@@ -5,6 +5,7 @@ import { aresService } from '../services/ares.service';
 import { Customer } from '../types';
 import Modal from '../components/Modal';
 import { FiPlus, FiSearch, FiTrash2, FiEdit } from 'react-icons/fi';
+import { useUIStore } from '../store/uiStore';
 
 function Customers() {
   const navigate = useNavigate();
@@ -199,72 +200,11 @@ function Customers() {
         />
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Název
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                IČ
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                DIČ
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Město
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                E-mail
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Akce
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredCustomers.map((customer) => (
-              <tr
-                key={customer.id}
-                className="hover:bg-gray-50 cursor-pointer"
-                onClick={() => navigate(`/customers/${customer.id}`)}
-                title="Otevřít detail zákazníka"
-              >
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                  {customer.name}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {customer.ic || '-'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {customer.dic || '-'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {customer.city || '-'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {customer.email || '-'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditCustomer(customer);
-                      }}
-                      className="text-blue-600 hover:text-blue-900"
-                      title="Upravit"
-                    >
-                      <FiEdit className="w-5 h-5" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <CustomersList
+        customers={filteredCustomers}
+        onEdit={handleEditCustomer}
+        onNavigate={(id) => navigate(`/customers/${id}`)}
+      />
 
       {/* Modal pro přidání/editaci/zobrazení zákazníka */}
       <Modal
@@ -505,6 +445,101 @@ function Customers() {
           </div>
         </form>
       </Modal>
+    </div>
+  );
+}
+
+function CustomersList({ customers, onEdit, onNavigate }: {
+  customers: Customer[];
+  onEdit: (customer: Customer) => void;
+  onNavigate: (id: number) => void;
+}) {
+  const { mobileView } = useUIStore();
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  const showCards = mobileView || isMobile;
+
+  if (showCards) {
+    return (
+      <div className="space-y-3">
+        {customers.map((customer) => (
+          <div
+            key={customer.id}
+            className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => onNavigate(customer.id!)}
+          >
+            <div className="flex justify-between items-start">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900">{customer.name}</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {[customer.ic && `IČ: ${customer.ic}`, customer.city].filter(Boolean).join(' • ')}
+                </p>
+                {customer.email && (
+                  <p className="text-xs text-gray-400 mt-0.5 truncate">{customer.email}</p>
+                )}
+              </div>
+              <button
+                onClick={(e) => { e.stopPropagation(); onEdit(customer); }}
+                className="text-blue-600 hover:text-blue-900 p-1 ml-3 shrink-0"
+                title="Upravit"
+              >
+                <FiEdit className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-lg shadow overflow-x-auto">
+      <table className="min-w-full divide-y divide-gray-200">
+        <thead className="bg-gray-50">
+          <tr>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Název</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IČ</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DIČ</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Město</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">E-mail</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Akce</th>
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {customers.map((customer) => (
+            <tr
+              key={customer.id}
+              className="hover:bg-gray-50 cursor-pointer"
+              onClick={() => onNavigate(customer.id!)}
+              title="Otevřít detail zákazníka"
+            >
+              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{customer.name}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{customer.ic || '-'}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{customer.dic || '-'}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{customer.city || '-'}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{customer.email || '-'}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                <div className="flex space-x-2">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onEdit(customer); }}
+                    className="text-blue-600 hover:text-blue-900"
+                    title="Upravit"
+                  >
+                    <FiEdit className="w-5 h-5" />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

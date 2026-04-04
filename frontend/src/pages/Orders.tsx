@@ -10,6 +10,7 @@ import { format } from 'date-fns';
 import { cs } from 'date-fns/locale';
 import { FiPlus, FiEdit, FiTrash2, FiSearch } from 'react-icons/fi';
 import Modal from '../components/Modal';
+import { useUIStore } from '../store/uiStore';
 
 interface OrderFormData {
   number: string;
@@ -691,42 +692,111 @@ function Orders() {
         </form>
       </Modal>
 
+      <OrdersList
+        orders={filteredOrders}
+        onEdit={handleEditOrder}
+        onNavigate={(id) => navigate(`/orders/${id}`)}
+        formatCurrency={formatCurrency}
+      />
+    </div>
+  );
+}
+
+function OrdersList({ orders, onEdit, onNavigate, formatCurrency }: {
+  orders: any[];
+  onEdit: (order: any) => void;
+  onNavigate: (id: number) => void;
+  formatCurrency: (n: number) => string;
+}) {
+  const { mobileView } = useUIStore();
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  const showCards = mobileView || isMobile;
+
+  if (showCards) {
+    return (
+      <div className="space-y-3">
+        {orders.map((order) => (
+          <div
+            key={order.id}
+            className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => onNavigate(order.id)}
+          >
+            <div className="flex justify-between items-start">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs font-mono text-gray-500">{order.number}</span>
+                  <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded">
+                    {order.statusName}
+                  </span>
+                </div>
+                <p className="text-sm font-medium text-gray-900 truncate">{order.title}</p>
+                <p className="text-xs text-gray-500 truncate mt-0.5">{order.customerName}</p>
+              </div>
+              <div className="flex flex-col items-end gap-2 ml-3 shrink-0">
+                <span className="text-sm font-semibold text-gray-900">{formatCurrency(order.totalPrice)} Kč</span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onEdit(order); }}
+                  className="text-blue-600 hover:text-blue-900 p-1"
+                  title="Upravit"
+                >
+                  <FiEdit className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            <p className="text-xs text-gray-400 mt-2">
+              {format(new Date(order.createdAt), 'dd.MM.yyyy', { locale: cs })}
+            </p>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
       <div className="bg-white rounded-lg shadow overflow-x-auto">
-        <table className="min-w-full table-fixed divide-y divide-gray-200">
+        <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="w-32 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Číslo
               </th>
-              <th className="w-56 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Název
               </th>
-              <th className="w-72 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Zákazník
               </th>
-              <th className="w-32 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Stav
               </th>
-              <th className="w-40 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Hodnota zakázky
               </th>
-              <th className="w-32 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Vytvořeno
               </th>
-              <th className="w-40 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Naposledy změněno
               </th>
-              <th className="w-24 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Akce
               </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {filteredOrders.map((order) => (
+            {orders.map((order) => (
               <tr
                 key={order.id}
                 className="hover:bg-gray-50 cursor-pointer"
-                onClick={() => navigate(`/orders/${order.id}`)}
+                onClick={() => onNavigate(order.id)}
                 title="Otevřít detail zakázky"
               >
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
@@ -761,7 +831,7 @@ function Orders() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleEditOrder(order);
+                        onEdit(order);
                       }}
                       className="text-blue-600 hover:text-blue-900"
                       title="Upravit"
@@ -775,7 +845,6 @@ function Orders() {
           </tbody>
         </table>
       </div>
-    </div>
   );
 }
 
