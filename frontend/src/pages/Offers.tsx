@@ -8,6 +8,7 @@ import { format } from 'date-fns';
 import { cs } from 'date-fns/locale';
 import { FiPlus, FiTrash2, FiEye, FiEdit, FiPrinter } from 'react-icons/fi';
 import Modal from '../components/Modal';
+import { useUIStore } from '../store/uiStore';
 
 interface OfferFormData {
   orderId: number | null;
@@ -558,85 +559,13 @@ function Offers() {
               Pro tuto zakázku zatím neexistují žádné nabídky
             </div>
           ) : (
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Číslo verze
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Datum vystavení
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Platnost do
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Cestovné
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Montáž
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Akce
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {offers.map((offer) => (
-                  <tr key={offer.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      #{offer.sequenceNumber}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {format(new Date(offer.issueDate), 'dd.MM.yyyy', { locale: cs })}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {format(new Date(offer.validityDate), 'dd.MM.yyyy', { locale: cs })}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {offer.travelCostsEnabled ? (
-                        <span className="text-green-600">✓ Ano</span>
-                      ) : (
-                        <span className="text-gray-400">Ne</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {offer.assemblyEnabled ? (
-                        <span className="text-green-600">✓ Ano</span>
-                      ) : (
-                        <span className="text-gray-400">Ne</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => navigate(`/offers/${offer.id}`)}
-                          className="text-primary-600 hover:text-primary-900"
-                          title="Zobrazit detail"
-                        >
-                          <FiEye className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={() => handleEditOffer(offer)}
-                          className="text-blue-600 hover:text-blue-900"
-                          title="Upravit"
-                        >
-                          <FiEdit className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={() => handlePrintOffer(offer.id)}
-                          disabled={printingOfferId === offer.id}
-                          className="text-emerald-600 hover:text-emerald-900 disabled:opacity-50"
-                          title="Tisk do PDF"
-                        >
-                          <FiPrinter className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <OffersList
+              offers={offers}
+              printingOfferId={printingOfferId}
+              onView={(id) => navigate(`/offers/${id}`)}
+              onEdit={handleEditOffer}
+              onPrint={handlePrintOffer}
+            />
           )}
         </div>
       )}
@@ -1086,6 +1015,131 @@ function Offers() {
       </Modal>
 
     </div>
+  );
+}
+
+function OffersList({ offers, printingOfferId, onView, onEdit, onPrint }: {
+  offers: Offer[];
+  printingOfferId: number | null;
+  onView: (id: number) => void;
+  onEdit: (offer: Offer) => void;
+  onPrint: (id: number) => void;
+}) {
+  const { mobileView } = useUIStore();
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  const showCards = mobileView || isMobile;
+
+  if (showCards) {
+    return (
+      <div className="space-y-3">
+        {offers.map((offer) => (
+          <div
+            key={offer.id}
+            className="bg-white rounded-lg shadow p-4"
+          >
+            <div className="flex justify-between items-start">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900">Verze #{offer.sequenceNumber}</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Vystavení: {format(new Date(offer.issueDate), 'dd.MM.yyyy', { locale: cs })}
+                </p>
+                <p className="text-xs text-gray-500">
+                  Platnost do: {format(new Date(offer.validityDate), 'dd.MM.yyyy', { locale: cs })}
+                </p>
+                <div className="flex gap-2 mt-1">
+                  {offer.travelCostsEnabled && <span className="text-xs text-green-600">✓ Cestovné</span>}
+                  {offer.assemblyEnabled && <span className="text-xs text-green-600">✓ Montáž</span>}
+                </div>
+              </div>
+              <div className="flex gap-2 ml-3 shrink-0">
+                <button
+                  onClick={() => onView(offer.id!)}
+                  className="text-primary-600 hover:text-primary-900 p-1"
+                  title="Zobrazit detail"
+                >
+                  <FiEye className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => onEdit(offer)}
+                  className="text-blue-600 hover:text-blue-900 p-1"
+                  title="Upravit"
+                >
+                  <FiEdit className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => onPrint(offer.id!)}
+                  disabled={printingOfferId === offer.id}
+                  className="text-emerald-600 hover:text-emerald-900 disabled:opacity-50 p-1"
+                  title="Tisk do PDF"
+                >
+                  <FiPrinter className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <table className="min-w-full divide-y divide-gray-200">
+      <thead className="bg-gray-50">
+        <tr>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Číslo verze</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Datum vystavení</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Platnost do</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cestovné</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Montáž</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Akce</th>
+        </tr>
+      </thead>
+      <tbody className="bg-white divide-y divide-gray-200">
+        {offers.map((offer) => (
+          <tr key={offer.id} className="hover:bg-gray-50">
+            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#{offer.sequenceNumber}</td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              {format(new Date(offer.issueDate), 'dd.MM.yyyy', { locale: cs })}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              {format(new Date(offer.validityDate), 'dd.MM.yyyy', { locale: cs })}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              {offer.travelCostsEnabled ? <span className="text-green-600">✓ Ano</span> : <span className="text-gray-400">Ne</span>}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              {offer.assemblyEnabled ? <span className="text-green-600">✓ Ano</span> : <span className="text-gray-400">Ne</span>}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              <div className="flex space-x-2">
+                <button onClick={() => onView(offer.id!)} className="text-primary-600 hover:text-primary-900" title="Zobrazit detail">
+                  <FiEye className="w-5 h-5" />
+                </button>
+                <button onClick={() => onEdit(offer)} className="text-blue-600 hover:text-blue-900" title="Upravit">
+                  <FiEdit className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => onPrint(offer.id!)}
+                  disabled={printingOfferId === offer.id}
+                  className="text-emerald-600 hover:text-emerald-900 disabled:opacity-50"
+                  title="Tisk do PDF"
+                >
+                  <FiPrinter className="w-5 h-5" />
+                </button>
+              </div>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
 
