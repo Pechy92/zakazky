@@ -12,6 +12,13 @@ const loginSchema = z.object({
   password: z.string().min(6),
 });
 
+const registerSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(6).max(128),
+  fullName: z.string().min(2).max(100),
+  role: z.enum(['admin', 'manager', 'user']),
+});
+
 const ensureUserActivationColumn = async () => {
   await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE');
 };
@@ -81,7 +88,7 @@ router.post('/login', async (req, res) => {
 // Registrace (pouze pro adminy/manažery)
 router.post('/register', authenticateToken, authorizeRoles('admin', 'manager'), async (req, res) => {
   try {
-    const { email, password, fullName, role } = req.body;
+    const { email, password, fullName, role } = registerSchema.parse(req.body);
 
     // Hash hesla
     const passwordHash = await bcrypt.hash(password, 10);
@@ -95,6 +102,9 @@ router.post('/register', authenticateToken, authorizeRoles('admin', 'manager'), 
   } catch (error: any) {
     if (error.code === '23505') {
       return res.status(400).json({ error: 'Uživatel s tímto emailem již existuje' });
+    }
+    if (error?.issues) {
+      return res.status(400).json({ error: 'Neplatná data pro registraci' });
     }
     console.error('Registration error:', error);
     res.status(400).json({ error: 'Chyba při registraci' });

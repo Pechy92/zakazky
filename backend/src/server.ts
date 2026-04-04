@@ -63,8 +63,8 @@ app.use((req, res, next) => {
   next();
 });
 
-// Statické soubory (PDF)
-app.use('/uploads', express.static(UPLOAD_DIR));
+// Statické soubory (veřejné assety - MIMO PDF)
+// PDF soubory jsou dostupné pouze přes autentizovaný endpoint /api/pdfs/file/:filename
 
 // Rate limiting pro všechna API volání
 app.use('/api/', apiLimiter);

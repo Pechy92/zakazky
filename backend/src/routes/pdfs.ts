@@ -4,6 +4,8 @@ import { authenticateToken } from '../middleware/auth';
 import puppeteer from 'puppeteer';
 import path from 'path';
 import fs from 'fs/promises';
+import fsSync from 'fs';
+import jwt from 'jsonwebtoken';
 
 const router = express.Router();
 const PDF_UPLOAD_DIR = path.join(
@@ -517,5 +519,44 @@ function escapeHtml(input: string): string {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+
+// Autentizované stahování PDF - token přes Bearer header nebo ?token= query param
+router.get('/file/:filename', (req: express.Request, res: express.Response) => {
+  const token =
+    (req.headers['authorization']?.split(' ')[1]) ||
+    (req.query.token as string | undefined);
+
+  if (!token) {
+    return res.status(401).json({ error: 'Token není poskytnut' });
+  }
+
+  try {
+    jwt.verify(token, process.env.JWT_SECRET!);
+  } catch {
+    return res.status(403).json({ error: 'Neplatný token' });
+  }
+
+  const filename = req.params.filename;
+  // Prevence path traversal - povolit jen bezpečné znaky
+  if (!/^[a-zA-Z0-9_\-. ]+\.pdf$/i.test(filename)) {
+    return res.status(400).json({ error: 'Neplatný název souboru' });
+  }
+
+  const filePath = path.join(PDF_UPLOAD_DIR, filename);
+  // Ujistit se, že je soubor uvnitř povoleného adresáře
+  const resolvedFilePath = path.resolve(filePath);
+  const resolvedUploadDir = path.resolve(PDF_UPLOAD_DIR);
+  if (!resolvedFilePath.startsWith(resolvedUploadDir + path.sep)) {
+    return res.status(400).json({ error: 'Neplatná cesta k souboru' });
+  }
+
+  if (!fsSync.existsSync(resolvedFilePath)) {
+    return res.status(404).json({ error: 'Soubor nenalezen' });
+  }
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+  fsSync.createReadStream(resolvedFilePath).pipe(res);
+});
 
 export default router;

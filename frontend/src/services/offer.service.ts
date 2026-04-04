@@ -62,6 +62,10 @@ export const offerService = {
     if (!fileUrl) return '';
     if (/^https?:\/\//i.test(fileUrl)) return fileUrl;
     const backendBase = resolveBackendBaseUrl();
-    return `${backendBase}${fileUrl}`;
+    // Extrahovat jméno souboru a sestavit autentizovaný endpoint
+    const filename = fileUrl.split('/').pop();
+    if (!filename) return '';
+    const token = localStorage.getItem('token') || '';
+    return `${backendBase}/api/pdfs/file/${encodeURIComponent(filename)}?token=${encodeURIComponent(token)}`;
   },
 };
