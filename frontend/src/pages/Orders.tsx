@@ -731,6 +731,9 @@ function OrdersList({ orders, onEdit, onNavigate, formatCurrency }: {
                 </div>
                 <p className="text-sm font-medium text-gray-900 truncate">{order.title}</p>
                 <p className="text-xs text-gray-500 truncate mt-0.5">{order.customerName}</p>
+                {order.assignedToName && (
+                  <p className="text-xs text-gray-400 truncate mt-0.5">&#128100; {order.assignedToName}</p>
+                )}
               </div>
               <div className="flex flex-col items-end gap-2 ml-3 shrink-0">
                 <span className="text-sm font-semibold text-gray-900">{formatCurrency(order.totalPrice)} Kč</span>
@@ -765,6 +768,9 @@ function OrdersList({ orders, onEdit, onNavigate, formatCurrency }: {
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Zákazník
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">
+                Přiřazeno
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Stav
@@ -803,6 +809,9 @@ function OrdersList({ orders, onEdit, onNavigate, formatCurrency }: {
                   <div className="whitespace-normal break-words leading-5" title={order.customerName || ''}>
                     {order.customerName}
                   </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 align-top hidden lg:table-cell">
+                  {order.assignedToName || <span className="text-gray-300">—</span>}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 align-top">
                   <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
