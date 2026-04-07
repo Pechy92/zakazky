@@ -19,6 +19,8 @@ import aresRoutes from './routes/ares';
 dotenv.config();
 
 const app = express();
+// Railway (a jine reverse proxy) posilaji X-Forwarded-For - nutne pro spravne fungovani rate limiteru
+app.set('trust proxy', 1);
 const PORT = Number(process.env.PORT) || 3001;
 const UPLOAD_DIR = path.resolve(process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads'));
 
