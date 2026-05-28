@@ -24,13 +24,17 @@ interface AuthState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
+  isHydrated: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   initialize: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  ...getStoredAuth(),
+  user: null,
+  token: null,
+  isAuthenticated: false,
+  isHydrated: false,
 
   login: async (email: string, password: string) => {
     const data = await authService.login(email, password);
@@ -42,10 +46,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    set({ user: null, token: null, isAuthenticated: false });
+    set({ user: null, token: null, isAuthenticated: false, isHydrated: true });
   },
 
   initialize: () => {
-    set(getStoredAuth());
+    set({ ...getStoredAuth(), isHydrated: true });
   },
 }));
