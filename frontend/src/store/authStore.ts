@@ -2,6 +2,24 @@ import { create } from 'zustand';
 import { User } from '../types';
 import { authService } from '../services/auth.service';
 
+const getStoredAuth = () => {
+  const token = localStorage.getItem('token');
+  const userStr = localStorage.getItem('user');
+
+  if (!token || !userStr) {
+    return { user: null, token: null, isAuthenticated: false };
+  }
+
+  try {
+    const user = JSON.parse(userStr) as User;
+    return { user, token, isAuthenticated: true };
+  } catch (error) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    return { user: null, token: null, isAuthenticated: false };
+  }
+};
+
 interface AuthState {
   user: User | null;
   token: string | null;
@@ -12,9 +30,7 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
-  token: null,
-  isAuthenticated: false,
+  ...getStoredAuth(),
 
   login: async (email: string, password: string) => {
     const data = await authService.login(email, password);
@@ -30,16 +46,6 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   initialize: () => {
-    const token = localStorage.getItem('token');
-    const userStr = localStorage.getItem('user');
-    if (token && userStr) {
-      try {
-        const user = JSON.parse(userStr);
-        set({ user, token, isAuthenticated: true });
-      } catch (error) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-      }
-    }
+    set(getStoredAuth());
   },
 }));
