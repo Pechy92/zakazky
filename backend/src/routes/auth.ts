@@ -19,15 +19,9 @@ const registerSchema = z.object({
   role: z.enum(['admin', 'manager', 'user']),
 });
 
-const ensureUserActivationColumn = async () => {
-  await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE');
-};
-
 // Přihlášení
 router.post('/login', async (req, res) => {
   try {
-    await ensureUserActivationColumn();
-
     const { email, password } = loginSchema.parse(req.body);
 
     const result = await pool.query(

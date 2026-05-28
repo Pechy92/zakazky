@@ -15,6 +15,7 @@ import categoryRoutes from './routes/categories';
 import statusRoutes from './routes/statuses';
 import pdfRoutes from './routes/pdfs';
 import aresRoutes from './routes/ares';
+import pool from './config/database';
 
 dotenv.config();
 
@@ -98,8 +99,15 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   res.status(500).json({ error: 'Něco se pokazilo!' });
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
   console.log(`🚀 Server běží na portu ${PORT}`);
+  // Startup migrace — spustit jednou při startu, ne na každý request
+  try {
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE');
+    console.log('✅ DB migrace OK');
+  } catch (err) {
+    console.error('⚠️ DB migrace selhala:', err);
+  }
 });
 
 export default app;

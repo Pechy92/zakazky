@@ -135,23 +135,25 @@ router.post('/generate/:offerId', authenticateToken, async (req, res) => {
     const html = generateOfferHTML(offer, itemsResult.rows, weakItemsMap, logoSource);
 
     // Generovat PDF pomocí Puppeteer
-    const browser = await launchPdfBrowser();
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 120000 });
-    
     const fileName = `nabidka_${offer.order_number}_${offer.sequence_number}_${Date.now()}.pdf`;
     const filePath = path.join(PDF_UPLOAD_DIR, fileName);
     await fs.mkdir(path.dirname(filePath), { recursive: true });
-    
-    await page.pdf({
-      path: filePath,
-      width: '8.2778in',
-      height: '12.9861in',
-      margin: { top: '0', right: '0', bottom: '0', left: '0' },
-      printBackground: true,
-    });
-    
-    await browser.close();
+
+    const browser = await launchPdfBrowser();
+    try {
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 120000 });
+      await page.pdf({
+        path: filePath,
+        width: '8.2778in',
+        height: '12.9861in',
+        margin: { top: '0', right: '0', bottom: '0', left: '0' },
+        printBackground: true,
+      });
+    } finally {
+      // Vždy zavřít browser, i při chybě - jinak dochází k memory leaku
+      await browser.close();
+    }
 
     // Uložit info o PDF do databáze
     const fileStats = await fs.stat(filePath);

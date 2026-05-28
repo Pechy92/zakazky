@@ -19,7 +19,8 @@ pool.on('connect', () => {
 });
 
 pool.on('error', (err) => {
-  console.error('❌ Neočekávaná chyba v databázovém klientovi:', err);
+  // Logovat chybu, ale NEKRASHOVAT process - pool se sam zotavi
+  console.error('⚠️ Chyba v databazovem klientovi (pool zustava aktivni):', err.message);
 });
 
 console.log('✅ Pool inicializován');
