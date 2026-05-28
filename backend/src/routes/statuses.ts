@@ -4,9 +4,36 @@ import { authenticateToken, authorizeRoles } from '../middleware/auth';
 
 const router = express.Router();
 
+const ensureDefaultStatuses = async () => {
+  await pool.query(
+    `INSERT INTO order_statuses (name, order_index)
+     SELECT v.name, v.order_index
+     FROM (
+       VALUES
+         ('Nová zakázka', 0),
+         ('Nabídka', 1),
+         ('Rozpracované', 2),
+         ('Hotovo', 3),
+         ('Čeká se/oprava/úprava', 4),
+         ('Odevzdáno', 5),
+         ('K fakturaci', 6),
+         ('Nezaplaceno', 7),
+         ('Přednostně', 8),
+         ('Zrušeno', 9)
+     ) AS v(name, order_index)
+     WHERE NOT EXISTS (
+       SELECT 1
+       FROM order_statuses os
+       WHERE LOWER(os.name) = LOWER(v.name)
+     )`
+  );
+};
+
 // Získat všechny stavy
 router.get('/', authenticateToken, async (req, res) => {
   try {
+    await ensureDefaultStatuses();
+
     const result = await pool.query('SELECT * FROM order_statuses ORDER BY order_index');
     
     // Namapovat snake_case na camelCase
