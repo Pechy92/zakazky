@@ -299,7 +299,6 @@ function OfferDetail() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Název</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Popis</th>
                     <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Množství</th>
                     <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Jedn. cena</th>
                     <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Celkem</th>
@@ -309,7 +308,6 @@ function OfferDetail() {
                   {items.map((item) => (
                     <tr key={item.id}>
                       <td className="px-4 py-2 text-sm font-medium text-gray-900">{item.name}</td>
-                      <td className="px-4 py-2 text-sm text-gray-700">{item.description || '—'}</td>
                       <td className="px-4 py-2 text-sm text-gray-700 text-right">{item.quantity}</td>
                       <td className="px-4 py-2 text-sm text-gray-700 text-right">{formatCurrency(Number(item.unitPrice) || 0)} Kč</td>
                       <td className="px-4 py-2 text-sm text-gray-900 text-right font-semibold">{formatCurrency(Number(item.totalPrice) || 0)} Kč</td>

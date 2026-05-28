@@ -503,7 +503,6 @@ function generateOfferHTML(
           <div class="summary-notes">
             ${combinationContent || ''}
             ${weakCurrentLines.map((line: string) => `<p>${escapeHtml(line)}</p>`).join('')}
-            ${offer.note ? `<p>${escapeHtml(offer.note)}</p>` : ''}
             ${templateContent || ''}
           </div>
         </div>

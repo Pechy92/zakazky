@@ -8,9 +8,10 @@ interface ModalProps {
   title: string;
   children: React.ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
+  disableBackdropClose?: boolean;
 }
 
-function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalProps) {
+function Modal({ isOpen, onClose, title, children, size = 'md', disableBackdropClose = false }: ModalProps) {
   const sizeClasses = {
     sm: 'max-w-md',
     md: 'max-w-lg',
@@ -20,7 +21,7 @@ function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalProps) {
 
   return (
     <Transition show={isOpen} as={Fragment}>
-      <Dialog onClose={onClose} className="relative z-50">
+      <Dialog onClose={disableBackdropClose ? () => {} : onClose} className="relative z-50">
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-300"

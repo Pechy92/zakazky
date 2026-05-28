@@ -57,6 +57,7 @@ function Offers() {
   const [combinations, setCombinations] = useState<CategoryCombination[]>([]);
   const [weakCurrentItems, setWeakCurrentItems] = useState<WeakCurrentItem[]>([]);
   const [textTemplates, setTextTemplates] = useState<TextTemplate[]>([]);
+  const [categoriesError, setCategoriesError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isViewMode, setIsViewMode] = useState(false);
@@ -214,6 +215,7 @@ function Offers() {
 
   const loadCategories = async () => {
     try {
+      setCategoriesError(false);
       const [mainCats, subCats, comboData, weakItems, textTemps] = await Promise.all([
         categoryService.getMainCategories(),
         categoryService.getSubcategories(),
@@ -221,7 +223,6 @@ function Offers() {
         categoryService.getWeakCurrentItems(),
         categoryService.getTextTemplates(),
       ]);
-      console.log('Loaded categories:', { mainCats, subCats, comboData, weakItems, textTemps });
       setMainCategories(mainCats);
       setSubcategories(subCats);
       setCombinations(comboData);
@@ -229,6 +230,7 @@ function Offers() {
       setTextTemplates(textTemps);
     } catch (error) {
       console.error('Failed to load categories:', error);
+      setCategoriesError(true);
     }
   };
 
@@ -534,6 +536,13 @@ function Offers() {
         </button>
       </div>
 
+      {categoriesError && (
+        <div className="bg-red-50 border border-red-200 rounded-md p-3 flex items-center justify-between">
+          <span className="text-sm text-red-700">Nepodařilo se načíst číselníky (kategorie, slaboproud). Formulář nabídky nemusí fungovat správně.</span>
+          <button onClick={loadCategories} className="text-sm text-red-700 font-medium underline ml-4 shrink-0">Zkusit znovu</button>
+        </div>
+      )}
+
       <div className="bg-white rounded-lg shadow p-4">
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Vyberte zakázku
@@ -573,6 +582,7 @@ function Offers() {
       <Modal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
+        disableBackdropClose={!isViewMode}
         title={isViewMode ? 'Detail nabídky' : editingOfferId ? 'Upravit nabídku' : 'Nová nabídka'}
         size="xl"
       >
@@ -841,7 +851,7 @@ function Offers() {
             )}
           </div>
 
-          {/* Montáž */}
+          {/* Kompletace */}
           <div className="border-t pt-3">
             <div className="flex items-center mb-2">
               <input
@@ -902,23 +912,13 @@ function Offers() {
             <div className="space-y-2">
               {items.map((item, index) => (
                 <div key={index} className="flex gap-2 items-start border p-2 rounded-md">
-                  <div className="flex-1 grid grid-cols-1 md:grid-cols-5 gap-2">
+                  <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-2">
                     <div>
                       <input
                         type="text"
                         placeholder="Název *"
                         value={item.name}
                         onChange={(e) => handleItemChange(index, 'name', e.target.value)}
-                        disabled={isViewMode}
-                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                      />
-                    </div>
-                    <div>
-                      <input
-                        type="text"
-                        placeholder="Popis"
-                        value={item.description}
-                        onChange={(e) => handleItemChange(index, 'description', e.target.value)}
                         disabled={isViewMode}
                         className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                       />
@@ -1039,7 +1039,10 @@ function OffersList({ offers, printingOfferId, onView, onEdit, onPrint }: {
           >
             <div className="flex justify-between items-start">
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900">Verze #{offer.sequenceNumber}</p>
+                <p className="text-sm font-medium text-gray-900">
+                  {offer.name ? offer.name : `Verze #${offer.sequenceNumber}`}
+                  <span className="ml-1 text-xs text-gray-400 font-normal">#{offer.sequenceNumber}</span>
+                </p>
                 <p className="text-xs text-gray-500 mt-0.5">
                   Vystavení: {format(new Date(offer.issueDate), 'dd.MM.yyyy', { locale: cs })}
                 </p>
@@ -1048,7 +1051,7 @@ function OffersList({ offers, printingOfferId, onView, onEdit, onPrint }: {
                 </p>
                 <div className="flex gap-2 mt-1">
                   {offer.travelCostsEnabled && <span className="text-xs text-green-600">✓ Cestovné</span>}
-                  {offer.assemblyEnabled && <span className="text-xs text-green-600">✓ Montáž</span>}
+                  {offer.assemblyEnabled && <span className="text-xs text-green-600">✓ Kompletace</span>}
                 </div>
               </div>
               <div className="flex gap-2 ml-3 shrink-0">
@@ -1086,18 +1089,21 @@ function OffersList({ offers, printingOfferId, onView, onEdit, onPrint }: {
     <table className="min-w-full divide-y divide-gray-200">
       <thead className="bg-gray-50">
         <tr>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Číslo verze</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Název / Verze</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Datum vystavení</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Platnost do</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cestovné</th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Montáž</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kompletace</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Akce</th>
         </tr>
       </thead>
       <tbody className="bg-white divide-y divide-gray-200">
         {offers.map((offer) => (
           <tr key={offer.id} className="hover:bg-gray-50">
-            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#{offer.sequenceNumber}</td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+              {offer.name ? offer.name : `Verze #${offer.sequenceNumber}`}
+              <span className="ml-1 text-xs text-gray-400">#{offer.sequenceNumber}</span>
+            </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
               {format(new Date(offer.issueDate), 'dd.MM.yyyy', { locale: cs })}
             </td>

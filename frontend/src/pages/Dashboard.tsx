@@ -34,7 +34,6 @@ function Dashboard() {
     }).format(value).replace(/\s/g, ' '); // Non-breaking space
   };
 
-  const totalValue = stats.reduce((sum, stat) => sum + Number(stat.totalValue || 0), 0);
   const totalCount = stats.reduce((sum, stat) => sum + stat.count, 0);
   const currentYear = new Date().getFullYear();
   const yearOptions = Array.from({ length: 8 }, (_, i) => currentYear - i);
@@ -116,12 +115,6 @@ function Dashboard() {
         <div className="bg-white rounded-lg shadow p-4 sm:p-6 border-l-4 border-primary-500">
           <h3 className="text-sm font-medium text-gray-500">Celkem zakázek</h3>
           <p className="mt-1.5 text-2xl sm:text-3xl font-bold text-gray-900">{totalCount}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4 sm:p-6 border-l-4 border-primary-600">
-          <h3 className="text-sm font-medium text-gray-500">Celková hodnota</h3>
-          <p className="mt-1.5 text-xl sm:text-3xl font-bold text-gray-900">
-            {showAmounts ? `${formatCurrency(totalValue)} Kč` : '••••••'}
-          </p>
         </div>
       </div>
 
