@@ -33,6 +33,7 @@ function Orders() {
   const [isViewMode, setIsViewMode] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [updatingStatusOrderId, setUpdatingStatusOrderId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState<OrderFormData>({
     number: '',
@@ -116,6 +117,30 @@ function Orders() {
       setStatuses(data);
     } catch (error) {
       console.error('Failed to load statuses:', error);
+    }
+  };
+
+  const handleInlineStatusChange = async (orderId: number, statusId: number) => {
+    const previousOrder = orders.find((order) => order.id === orderId);
+    if (!previousOrder || previousOrder.statusId === statusId) return;
+
+    setUpdatingStatusOrderId(orderId);
+    setOrders((current) =>
+      current.map((order) => (order.id === orderId ? { ...order, statusId } : order))
+    );
+
+    try {
+      await orderService.update(orderId, { statusId });
+      await loadOrders();
+    } catch (error) {
+      console.error('Failed to update order status:', error);
+      setOrders((current) =>
+        current.map((order) =>
+          order.id === orderId ? { ...order, statusId: previousOrder.statusId } : order
+        )
+      );
+    } finally {
+      setUpdatingStatusOrderId(null);
     }
   };
 
@@ -697,20 +722,61 @@ function Orders() {
         onEdit={handleEditOrder}
         onNavigate={(id) => navigate(`/orders/${id}`)}
         formatCurrency={formatCurrency}
+        statuses={statuses}
+        onStatusChange={handleInlineStatusChange}
+        updatingStatusOrderId={updatingStatusOrderId}
       />
     </div>
   );
 }
 
-function OrdersList({ orders, onEdit, onNavigate, formatCurrency }: {
+function OrdersList({
+  orders,
+  onEdit,
+  onNavigate,
+  formatCurrency,
+  statuses,
+  onStatusChange,
+  updatingStatusOrderId,
+}: {
   orders: any[];
   onEdit: (order: any) => void;
   onNavigate: (id: number) => void;
   formatCurrency: (n: number) => string;
+  statuses: OrderStatus[];
+  onStatusChange: (orderId: number, statusId: number) => Promise<void>;
+  updatingStatusOrderId: number | null;
 }) {
   const { viewMode } = useUIStore();
 
   const showCards = viewMode === 'cards';
+
+  const renderStatusSelect = (order: any, compact = false) => (
+    <div
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      className={compact ? 'inline-block' : 'w-full'}
+    >
+      <select
+        value={order.statusId || ''}
+        disabled={updatingStatusOrderId === order.id || statuses.length === 0}
+        onChange={(e) => {
+          const value = e.target.value;
+          if (!value) return;
+          void onStatusChange(order.id, parseInt(value));
+        }}
+        className={compact
+          ? 'px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded border-0 focus:ring-2 focus:ring-primary-500 disabled:opacity-50'
+          : 'w-full px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded border-0 focus:ring-2 focus:ring-primary-500 disabled:opacity-50'}
+      >
+        {statuses.map((status) => (
+          <option key={status.id} value={status.id}>
+            {status.name}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
 
   if (showCards) {
     return (
@@ -725,9 +791,7 @@ function OrdersList({ orders, onEdit, onNavigate, formatCurrency }: {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-xs font-mono text-gray-500">{order.number}</span>
-                  <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded">
-                    {order.statusName}
-                  </span>
+                  {renderStatusSelect(order, true)}
                 </div>
                 <p className="text-sm font-medium text-gray-900 truncate">{order.title}</p>
                 <p className="text-xs text-gray-500 truncate mt-0.5">{order.customerName}</p>
@@ -814,9 +878,7 @@ function OrdersList({ orders, onEdit, onNavigate, formatCurrency }: {
                   {order.assignedToName || <span className="text-gray-300">—</span>}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 align-top">
-                  <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
-                    {order.statusName}
-                  </span>
+                  {renderStatusSelect(order)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
                   {formatCurrency(order.totalPrice)} Kč
