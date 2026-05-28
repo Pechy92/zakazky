@@ -125,10 +125,15 @@ router.post('/generate/:offerId', authenticateToken, async (req, res) => {
     );
 
     // Načíst položky slaboproudu pro čitelné názvy
-    const weakItemsMap = new Map<string, string>();
-    const weakItemsResult = await pool.query('SELECT code, name, description FROM weak_current_items');
+    const weakItemsMap = new Map<string, { label: string; isIncluded: boolean }>();
+    const weakItemsResult = await pool.query(
+      'SELECT code, name, description, COALESCE(is_included, TRUE) AS is_included FROM weak_current_items'
+    );
     weakItemsResult.rows.forEach((row) => {
-      weakItemsMap.set(row.code, row.description || row.name || row.code);
+      weakItemsMap.set(row.code, {
+        label: row.description || row.name || row.code,
+        isIncluded: row.is_included !== false,
+      });
     });
 
     const logoSource = await resolvePdfLogoSource();
@@ -244,7 +249,7 @@ router.get('/order/:orderId', authenticateToken, async (req, res) => {
 function generateOfferHTML(
   offer: any,
   items: any[],
-  weakItemsMap: Map<string, string>,
+  weakItemsMap: Map<string, { label: string; isIncluded: boolean }>,
   logoSource: string
 ): string {
   const formatNumber = (value: number) =>
@@ -269,9 +274,23 @@ function generateOfferHTML(
   const vat = Math.round(totalWithoutVat * 0.21);
   const totalWithVat = totalWithoutVat + vat;
 
-  const weakCurrentLines = Array.isArray(offer.selected_weak_current_items)
-    ? offer.selected_weak_current_items.map((code: string) => `Slaboproud: ${weakItemsMap.get(code) || code}`)
+  const selectedWeakCurrentCodes = Array.isArray(offer.selected_weak_current_items)
+    ? offer.selected_weak_current_items
     : [];
+
+  const weakCurrentIncludedLines: string[] = [];
+  const weakCurrentExcludedLines: string[] = [];
+
+  selectedWeakCurrentCodes.forEach((code: string) => {
+    const weakItem = weakItemsMap.get(code);
+    const label = weakItem?.label || code;
+
+    if (weakItem?.isIncluded === false) {
+      weakCurrentExcludedLines.push(`Slaboproud: ${label}`);
+    } else {
+      weakCurrentIncludedLines.push(`Slaboproud: ${label}`);
+    }
+  });
 
   const parsedCombinedContent = parseCombinedContent(offer.custom_text_content);
   const hasTemplate = Boolean(offer.text_template_id);
@@ -502,7 +521,8 @@ function generateOfferHTML(
 
           <div class="summary-notes">
             ${combinationContent || ''}
-            ${weakCurrentLines.map((line: string) => `<p>${escapeHtml(line)}</p>`).join('')}
+            ${weakCurrentIncludedLines.length > 0 ? `<p><strong>Slaboproud zahrnuje:</strong></p>${weakCurrentIncludedLines.map((line: string) => `<p>${escapeHtml(line)}</p>`).join('')}` : ''}
+            ${weakCurrentExcludedLines.length > 0 ? `<p><strong>Slaboproud nezahrnuje:</strong></p>${weakCurrentExcludedLines.map((line: string) => `<p>${escapeHtml(line)}</p>`).join('')}` : ''}
             ${templateContent || ''}
           </div>
         </div>

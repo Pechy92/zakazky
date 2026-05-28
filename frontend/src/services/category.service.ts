@@ -1,5 +1,10 @@
 import api from './api';
 
+const mapWeakCurrentItem = (item: any) => ({
+  ...item,
+  isIncluded: typeof item?.isIncluded === 'boolean' ? item.isIncluded : item?.is_included !== false,
+});
+
 export const categoryService = {
   async getMainCategories() {
     const response = await api.get('/categories/main');
@@ -41,7 +46,7 @@ export const categoryService = {
 
   async getWeakCurrentItems() {
     const response = await api.get('/categories/weak-current');
-    return response.data;
+    return Array.isArray(response.data) ? response.data.map(mapWeakCurrentItem) : [];
   },
 
   async createMainCategory(payload: { code: string; name: string; description?: string }) {
@@ -74,14 +79,14 @@ export const categoryService = {
     return response.data;
   },
 
-  async createWeakCurrentItem(payload: { code: string; name: string; description?: string }) {
+  async createWeakCurrentItem(payload: { code: string; name: string; description?: string; isIncluded?: boolean }) {
     const response = await api.post('/categories/weak-current', payload);
-    return response.data;
+    return mapWeakCurrentItem(response.data);
   },
 
-  async updateWeakCurrentItem(code: string, payload: { name: string; description?: string }) {
+  async updateWeakCurrentItem(code: string, payload: { name: string; description?: string; isIncluded?: boolean }) {
     const response = await api.put(`/categories/weak-current/${encodeURIComponent(code)}`, payload);
-    return response.data;
+    return mapWeakCurrentItem(response.data);
   },
 
   async deleteWeakCurrentItem(code: string) {

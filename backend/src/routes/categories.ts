@@ -4,6 +4,28 @@ import { authenticateToken, authorizeRoles } from '../middleware/auth';
 
 const router = express.Router();
 
+const ensureWeakCurrentSchema = async () => {
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS weak_current_items (
+      id SERIAL PRIMARY KEY,
+      code VARCHAR(100) UNIQUE NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      description TEXT,
+      is_included BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`
+  );
+
+  await pool.query('ALTER TABLE weak_current_items ADD COLUMN IF NOT EXISTS description TEXT');
+  await pool.query('ALTER TABLE weak_current_items ADD COLUMN IF NOT EXISTS is_included BOOLEAN NOT NULL DEFAULT TRUE');
+  await pool.query('UPDATE weak_current_items SET is_included = TRUE WHERE is_included IS NULL');
+};
+
+const mapWeakCurrentItem = (row: any) => ({
+  ...row,
+  is_included: row.is_included === false ? false : true,
+});
+
 // Získat hlavní kategorie
 router.get('/main', authenticateToken, async (req, res) => {
   try {
@@ -330,8 +352,9 @@ router.delete('/texts/:id', authenticateToken, authorizeRoles('admin', 'manager'
 // Získat slaboproudové položky
 router.get('/weak-current', authenticateToken, async (req, res) => {
   try {
+    await ensureWeakCurrentSchema();
     const result = await pool.query('SELECT * FROM weak_current_items ORDER BY name');
-    res.json(result.rows);
+    res.json(result.rows.map(mapWeakCurrentItem));
   } catch (error) {
     console.error('Error fetching weak current items:', error);
     res.status(500).json({ error: 'Chyba při načítání slaboproudových položek' });
@@ -341,16 +364,18 @@ router.get('/weak-current', authenticateToken, async (req, res) => {
 // Přidat slaboproudovou položku (admin)
 router.post('/weak-current', authenticateToken, authorizeRoles('admin', 'manager'), async (req, res) => {
   try {
-    const { code, name, description } = req.body;
+    await ensureWeakCurrentSchema();
+
+    const { code, name, description, isIncluded } = req.body;
     if (!code) {
       return res.status(400).json({ error: 'Code je povinný' });
     }
 
     const result = await pool.query(
-      'INSERT INTO weak_current_items (code, name, description) VALUES ($1, $2, $3) RETURNING *',
-      [code, name || code, description || null]
+      'INSERT INTO weak_current_items (code, name, description, is_included) VALUES ($1, $2, $3, $4) RETURNING *',
+      [code, name || code, description || null, isIncluded !== false]
     );
-    res.status(201).json(result.rows[0]);
+    res.status(201).json(mapWeakCurrentItem(result.rows[0]));
   } catch (error) {
     console.error('Error creating weak current item:', error);
     res.status(500).json({ error: 'Chyba při vytváření slaboproudové položky' });
@@ -360,19 +385,27 @@ router.post('/weak-current', authenticateToken, authorizeRoles('admin', 'manager
 // Upravit slaboproudovou položku (admin)
 router.put('/weak-current/:code', authenticateToken, authorizeRoles('admin', 'manager'), async (req, res) => {
   try {
-    const { code } = req.params;
-    const { name, description } = req.body;
+    await ensureWeakCurrentSchema();
 
-    const result = await pool.query(
-      'UPDATE weak_current_items SET name = $1, description = $2 WHERE code = $3 RETURNING *',
-      [name || code, description || null, code]
-    );
+    const { code } = req.params;
+    const { name, description, isIncluded } = req.body;
+
+    const shouldUpdateIncluded = typeof isIncluded === 'boolean';
+    const result = shouldUpdateIncluded
+      ? await pool.query(
+          'UPDATE weak_current_items SET name = $1, description = $2, is_included = $3 WHERE code = $4 RETURNING *',
+          [name || code, description || null, isIncluded, code]
+        )
+      : await pool.query(
+          'UPDATE weak_current_items SET name = $1, description = $2 WHERE code = $3 RETURNING *',
+          [name || code, description || null, code]
+        );
 
     if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Slaboproudová položka nebyla nalezena' });
     }
 
-    res.json(result.rows[0]);
+    res.json(mapWeakCurrentItem(result.rows[0]));
   } catch (error) {
     console.error('Error updating weak current item:', error);
     res.status(500).json({ error: 'Chyba při úpravě slaboproudové položky' });

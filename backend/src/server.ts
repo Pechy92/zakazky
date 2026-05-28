@@ -104,6 +104,19 @@ app.listen(PORT, '0.0.0.0', async () => {
   // Startup migrace — spustit jednou při startu, ne na každý request
   try {
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE');
+    await pool.query(
+      `CREATE TABLE IF NOT EXISTS weak_current_items (
+        id SERIAL PRIMARY KEY,
+        code VARCHAR(100) UNIQUE NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        is_included BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`
+    );
+    await pool.query('ALTER TABLE weak_current_items ADD COLUMN IF NOT EXISTS description TEXT');
+    await pool.query('ALTER TABLE weak_current_items ADD COLUMN IF NOT EXISTS is_included BOOLEAN NOT NULL DEFAULT TRUE');
+    await pool.query('UPDATE weak_current_items SET is_included = TRUE WHERE is_included IS NULL');
     console.log('✅ DB migrace OK');
   } catch (err) {
     console.error('⚠️ DB migrace selhala:', err);

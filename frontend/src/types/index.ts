@@ -122,6 +122,7 @@ export interface WeakCurrentItem {
   code: string;
   name: string;
   description?: string;
+  isIncluded?: boolean;
 }
 
 export interface TextTemplate {

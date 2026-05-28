@@ -59,6 +59,7 @@ function AdminDictionaries() {
 
   const [newCode, setNewCode] = useState('');
   const [newDescription, setNewDescription] = useState('');
+  const [newWeakIsIncluded, setNewWeakIsIncluded] = useState(true);
   const [newTemplateName, setNewTemplateName] = useState('');
   const [newTemplateContent, setNewTemplateContent] = useState('');
   const [newCombinationMainCode, setNewCombinationMainCode] = useState('');
@@ -70,6 +71,7 @@ function AdminDictionaries() {
   const [editingKey, setEditingKey] = useState<string | number | null>(null);
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
+  const [editWeakIsIncluded, setEditWeakIsIncluded] = useState(true);
   const [editContent, setEditContent] = useState('');
   const [editMainCode, setEditMainCode] = useState('');
   const [editSubCode, setEditSubCode] = useState('');
@@ -111,11 +113,13 @@ function AdminDictionaries() {
     content = '',
     order = '',
     mainCode = '',
-    subCode = ''
+    subCode = '',
+    weakIsIncluded = true
   ) => {
     setEditingKey(key);
     setEditName(name);
     setEditDescription(description || '');
+    setEditWeakIsIncluded(weakIsIncluded);
     setEditContent(content || '');
     setEditOrder(order ? String(order) : '');
     setEditMainCode(mainCode || '');
@@ -126,6 +130,7 @@ function AdminDictionaries() {
     setEditingKey(null);
     setEditName('');
     setEditDescription('');
+    setEditWeakIsIncluded(true);
     setEditContent('');
     setEditMainCode('');
     setEditSubCode('');
@@ -134,11 +139,16 @@ function AdminDictionaries() {
 
   const createCategoryItem = async (type: 'main' | 'sub' | 'weak') => {
     if (!newCode.trim()) return;
-    const payload = {
+
+    const payload: { code: string; name: string; description: string; isIncluded?: boolean } = {
       code: newCode.trim(),
       name: newCode.trim(),
       description: newDescription.trim(),
     };
+
+    if (type === 'weak') {
+      payload.isIncluded = newWeakIsIncluded;
+    }
 
     if (type === 'main') await categoryService.createMainCategory(payload);
     if (type === 'sub') await categoryService.createSubcategory(payload);
@@ -146,11 +156,19 @@ function AdminDictionaries() {
 
     setNewCode('');
     setNewDescription('');
+    setNewWeakIsIncluded(true);
     await loadData();
   };
 
   const updateCategoryItem = async (type: 'main' | 'sub' | 'weak', code: string) => {
-    const payload = { name: editName.trim() || code, description: editDescription.trim() };
+    const payload: { name: string; description: string; isIncluded?: boolean } = {
+      name: editName.trim() || code,
+      description: editDescription.trim(),
+    };
+
+    if (type === 'weak') {
+      payload.isIncluded = editWeakIsIncluded;
+    }
 
     if (type === 'main') await categoryService.updateMainCategory(code, payload);
     if (type === 'sub') await categoryService.updateSubcategory(code, payload);
@@ -317,10 +335,23 @@ function AdminDictionaries() {
                   onChange={(e) => setNewDescription(e.target.value)}
                   className="px-2 py-1.5 text-sm border border-gray-300 rounded-md"
                 />
+                {activeTab === 'weak' ? (
+                  <label className="flex items-center gap-2 px-2 py-1.5 text-sm border border-gray-300 rounded-md">
+                    <input
+                      type="checkbox"
+                      checked={newWeakIsIncluded}
+                      onChange={(e) => setNewWeakIsIncluded(e.target.checked)}
+                      className="h-4 w-4"
+                    />
+                    <span>{newWeakIsIncluded ? 'Zahrnuje' : 'Nezahrnuje'}</span>
+                  </label>
+                ) : (
+                  <div />
+                )}
                 <button
                   type="button"
                   onClick={() => createCategoryItem(activeTab as 'main' | 'sub' | 'weak')}
-                  className="px-3 py-1.5 text-sm bg-primary-600 text-white rounded-md hover:bg-primary-700"
+                  className="md:col-span-3 px-3 py-1.5 text-sm bg-primary-600 text-white rounded-md hover:bg-primary-700"
                 >
                   Přidat položku
                 </button>
@@ -331,6 +362,7 @@ function AdminDictionaries() {
                   <tr className="text-left border-b">
                     <th className="py-2 pr-2">Kód</th>
                     <th className="py-2 pr-2">Vysvětlení</th>
+                    {activeTab === 'weak' && <th className="py-2 pr-2">PDF sekce</th>}
                     <th className="py-2">Akce</th>
                   </tr>
                 </thead>
@@ -350,6 +382,23 @@ function AdminDictionaries() {
                           item.description || ''
                         )}
                       </td>
+                      {activeTab === 'weak' && (
+                        <td className="py-2 pr-2">
+                          {editingKey === item.code ? (
+                            <label className="inline-flex items-center gap-2 text-sm">
+                              <input
+                                type="checkbox"
+                                checked={editWeakIsIncluded}
+                                onChange={(e) => setEditWeakIsIncluded(e.target.checked)}
+                                className="h-4 w-4"
+                              />
+                              <span>{editWeakIsIncluded ? 'Zahrnuje' : 'Nezahrnuje'}</span>
+                            </label>
+                          ) : (
+                            'isIncluded' in item && item.isIncluded === false ? 'Nezahrnuje' : 'Zahrnuje'
+                          )}
+                        </td>
+                      )}
                       <td className="py-2 space-x-2">
                         {editingKey === item.code ? (
                           <>
@@ -372,7 +421,18 @@ function AdminDictionaries() {
                           <>
                             <button
                               type="button"
-                              onClick={() => startEdit(item.code, item.name, item.description || '')}
+                              onClick={() =>
+                                startEdit(
+                                  item.code,
+                                  item.name,
+                                  item.description || '',
+                                  '',
+                                  '',
+                                  '',
+                                  '',
+                                  !('isIncluded' in item) || item.isIncluded !== false
+                                )
+                              }
                               className="text-xs px-2 py-1 bg-blue-600 text-white rounded"
                             >
                               Upravit
