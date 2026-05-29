@@ -229,17 +229,44 @@ router.put('/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { title, customerId, statusId, assignedToUserId } = req.body;
 
+    // Umozni i casticne aktualizace (napr. jen status), aby se povinna pole
+    // neprepsala na NULL pri inline upravach.
+    const existingResult = await pool.query(
+      'SELECT id, title, customer_id, status_id, assigned_to_user_id FROM orders WHERE id = $1',
+      [id]
+    );
+
+    if (existingResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Zakázka nenalezena' });
+    }
+
+    const existing = existingResult.rows[0];
+    const resolvedTitle = typeof title === 'string' ? title.trim() : existing.title;
+    const resolvedCustomerId = customerId ?? existing.customer_id;
+    const resolvedStatusId = statusId ?? existing.status_id;
+    const resolvedAssignedToUserId = assignedToUserId === undefined
+      ? existing.assigned_to_user_id
+      : assignedToUserId;
+
+    if (!resolvedTitle) {
+      return res.status(400).json({ error: 'Název zakázky je povinný' });
+    }
+
+    if (!resolvedCustomerId) {
+      return res.status(400).json({ error: 'Zákazník je povinný' });
+    }
+
+    if (!resolvedStatusId) {
+      return res.status(400).json({ error: 'Stav je povinný' });
+    }
+
     const result = await pool.query(
       `UPDATE orders 
        SET title = $1, customer_id = $2, status_id = $3, assigned_to_user_id = $4
        WHERE id = $5 
        RETURNING *`,
-      [title, customerId, statusId, assignedToUserId, id]
+      [resolvedTitle, resolvedCustomerId, resolvedStatusId, resolvedAssignedToUserId, id]
     );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Zakázka nenalezena' });
-    }
 
     // Načtení detailů s joiny a vypočítanou cenou
     const detailResult = await pool.query(
