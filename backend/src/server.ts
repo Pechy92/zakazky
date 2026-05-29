@@ -99,7 +99,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   res.status(500).json({ error: 'Něco se pokazilo!' });
 });
 
-app.listen(PORT, '0.0.0.0', async () => {
+const server = app.listen(PORT, '0.0.0.0', async () => {
   console.log(`🚀 Server běží na portu ${PORT}`);
   // Startup migrace — spustit jednou při startu, ne na každý request
   try {
@@ -122,5 +122,41 @@ app.listen(PORT, '0.0.0.0', async () => {
     console.error('⚠️ DB migrace selhala:', err);
   }
 });
+
+let isShuttingDown = false;
+
+const gracefulShutdown = (signal: 'SIGTERM' | 'SIGINT') => {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+
+  console.log(`⚠️ Přijat ${signal}, ukončuji server...`);
+
+  const forceExitTimeout = setTimeout(() => {
+    console.error('⛔ Graceful shutdown timeout, ukončuji proces natvrdo');
+    process.exit(1);
+  }, 10000);
+
+  forceExitTimeout.unref();
+
+  server.close(async (closeError) => {
+    if (closeError) {
+      console.error('⛔ Chyba při zavírání HTTP serveru:', closeError);
+      process.exit(1);
+      return;
+    }
+
+    try {
+      await pool.end();
+      console.log('✅ HTTP server i DB pool korektně ukončeny');
+      process.exit(0);
+    } catch (dbError) {
+      console.error('⛔ Chyba při zavírání DB poolu:', dbError);
+      process.exit(1);
+    }
+  });
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 export default app;
