@@ -124,13 +124,23 @@ function Orders() {
     const previousOrder = orders.find((order) => order.id === orderId);
     if (!previousOrder || previousOrder.statusId === statusId) return;
 
+    if (!previousOrder.title || !previousOrder.customerId) {
+      alert('Zakázka nemá kompletní data pro uložení statusu. Otevřete ji prosím přes Upravit.');
+      return;
+    }
+
     setUpdatingStatusOrderId(orderId);
     setOrders((current) =>
       current.map((order) => (order.id === orderId ? { ...order, statusId } : order))
     );
 
     try {
-      await orderService.update(orderId, { statusId });
+      await orderService.update(orderId, {
+        title: previousOrder.title,
+        customerId: previousOrder.customerId,
+        statusId,
+        assignedToUserId: previousOrder.assignedToUserId ?? undefined,
+      });
       await loadOrders();
     } catch (error) {
       console.error('Failed to update order status:', error);
@@ -139,6 +149,7 @@ function Orders() {
           order.id === orderId ? { ...order, statusId: previousOrder.statusId } : order
         )
       );
+      alert('Změna statusu se nepodařila uložit. Zkuste to prosím znovu.');
     } finally {
       setUpdatingStatusOrderId(null);
     }
