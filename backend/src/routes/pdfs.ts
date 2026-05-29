@@ -124,20 +124,20 @@ router.post('/generate/:offerId', authenticateToken, async (req, res) => {
       [offerId]
     );
 
-    // Načíst položky slaboproudu pro čitelné názvy
-    const weakItemsMap = new Map<string, { label: string; isIncluded: boolean }>();
+    // Načíst všechny položky slaboproudu pro čitelné názvy i rozdělení zahrnuje/nezahrnuje
+    const weakItems: Array<{ code: string; label: string }> = [];
     const weakItemsResult = await pool.query(
-      'SELECT code, name, description, COALESCE(is_included, TRUE) AS is_included FROM weak_current_items'
+      'SELECT code, name, description FROM weak_current_items ORDER BY name'
     );
     weakItemsResult.rows.forEach((row) => {
-      weakItemsMap.set(row.code, {
+      weakItems.push({
+        code: row.code,
         label: row.description || row.name || row.code,
-        isIncluded: row.is_included !== false,
       });
     });
 
     const logoSource = await resolvePdfLogoSource();
-    const html = generateOfferHTML(offer, itemsResult.rows, weakItemsMap, logoSource);
+    const html = generateOfferHTML(offer, itemsResult.rows, weakItems, logoSource);
 
     // Generovat PDF pomocí Puppeteer
     const fileName = `nabidka_${offer.order_number}_${offer.sequence_number}_${Date.now()}.pdf`;
@@ -249,7 +249,7 @@ router.get('/order/:orderId', authenticateToken, async (req, res) => {
 function generateOfferHTML(
   offer: any,
   items: any[],
-  weakItemsMap: Map<string, { label: string; isIncluded: boolean }>,
+  weakItems: Array<{ code: string; label: string }>,
   logoSource: string
 ): string {
   const formatNumber = (value: number) =>
@@ -278,17 +278,21 @@ function generateOfferHTML(
     ? offer.selected_weak_current_items
     : [];
 
-  const weakCurrentIncludedLines: string[] = [];
-  const weakCurrentExcludedLines: string[] = [];
+  const selectedWeakCurrentCodeSet = new Set(selectedWeakCurrentCodes);
 
+  const weakCurrentIncludedLines = weakItems
+    .filter((item) => selectedWeakCurrentCodeSet.has(item.code))
+    .map((item) => `Slaboproud: ${item.label}`);
+
+  const weakCurrentExcludedLines = weakItems
+    .filter((item) => !selectedWeakCurrentCodeSet.has(item.code))
+    .map((item) => `Slaboproud: ${item.label}`);
+
+  // Fallback pro starší nabídky: pokud je v nabídce kód, který už v číselníku není,
+  // vytisknout ho mezi zahrnuté, aby informace nezmizela.
   selectedWeakCurrentCodes.forEach((code: string) => {
-    const weakItem = weakItemsMap.get(code);
-    const label = weakItem?.label || code;
-
-    if (weakItem?.isIncluded === false) {
-      weakCurrentExcludedLines.push(`Slaboproud: ${label}`);
-    } else {
-      weakCurrentIncludedLines.push(`Slaboproud: ${label}`);
+    if (!weakItems.some((item) => item.code === code)) {
+      weakCurrentIncludedLines.push(`Slaboproud: ${code}`);
     }
   });
 
