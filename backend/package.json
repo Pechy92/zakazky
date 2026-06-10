@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
+    "test": "npm run build && node --test dist/middleware/rateLimit.test.js",
     "start": "node dist/server.js",
     "migrate": "node dist/migrations/run.js"
   },

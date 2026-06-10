@@ -3,7 +3,6 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 
 import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
 import path from 'path';
 import fs from 'fs';
 import authRoutes from './routes/auth';
@@ -16,6 +15,7 @@ import statusRoutes from './routes/statuses';
 import pdfRoutes from './routes/pdfs';
 import aresRoutes from './routes/ares';
 import pool from './config/database';
+import { apiLimiter, loginLimiter } from './middleware/rateLimit';
 
 dotenv.config();
 
@@ -40,40 +40,26 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-// Rate limiting pro všechny API endpointy
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minut
-  max: 100, // max 100 požadavků za 15 minut
-  message: 'Příliš mnoho požadavků z této IP adresy, zkuste to prosím později.',
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-// Rate limiting speciálně pro login (přísnější)
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minut
-  max: 5, // max 5 pokusů o přihlášení
-  message: 'Příliš mnoho pokusů o přihlášení, zkuste to prosím za 15 minut.',
-  skipSuccessfulRequests: true,
-});
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Request logging pro debugging
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} ${req.method} ${req.path}`);
+  const startedAt = Date.now();
+  res.on('finish', () => {
+    console.log(
+      `${new Date().toISOString()} ${req.method} ${req.path} ${res.statusCode} ${Date.now() - startedAt}ms`
+    );
+  });
   next();
 });
 
 // Statické soubory (veřejné assety - MIMO PDF)
 // PDF soubory jsou dostupné pouze přes autentizovaný endpoint /api/pdfs/file/:filename
 
-// Rate limiting pro všechna API volání
-app.use('/api/', apiLimiter);
-
-// Přísnější rate limiting pro login (musí být před obecnými auth routes)
+// Login má vlastní ochranu. Obecný limiter login ani CORS preflight nezapočítává.
 app.use('/api/auth/login', loginLimiter);
+app.use('/api/', apiLimiter);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -84,9 +70,6 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/statuses', statusRoutes);
 app.use('/api/pdfs', pdfRoutes);
 app.use('/api/ares', aresRoutes);
-
-// Export login limiter pro použití v auth routes
-export { loginLimiter };
 
 // Health check
 app.get('/health', (req, res) => {
