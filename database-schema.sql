@@ -200,7 +200,8 @@ INSERT INTO order_statuses (name, order_index) VALUES
   ('K fakturaci', 6),
   ('Nezaplaceno', 7),
   ('Přednostně', 8),
-  ('Zrušeno', 9);
+  ('Zrušeno', 9),
+  ('Částečně vyfakturováno (DPZ/DPS)', 10);
 
 -- Počáteční data - Hlavní kategorie
 INSERT INTO main_categories (code, name) VALUES

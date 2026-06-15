@@ -1,6 +1,7 @@
 import express from 'express';
 import pool from '../config/database';
 import { authenticateToken, authorizeRoles } from '../middleware/auth';
+import { deleteTextTemplate } from '../services/textTemplates';
 
 const router = express.Router();
 
@@ -336,9 +337,9 @@ router.put('/texts/:id', authenticateToken, authorizeRoles('admin', 'manager'), 
 router.delete('/texts/:id', authenticateToken, authorizeRoles('admin', 'manager'), async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await pool.query('DELETE FROM text_templates WHERE id = $1 RETURNING id', [id]);
+    const deletedCount = await deleteTextTemplate(pool, id);
 
-    if (result.rowCount === 0) {
+    if (deletedCount === 0) {
       return res.status(404).json({ error: 'Textace nebyla nalezena' });
     }
 

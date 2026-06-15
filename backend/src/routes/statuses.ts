@@ -19,7 +19,8 @@ const ensureDefaultStatuses = async () => {
          ('K fakturaci', 6),
          ('Nezaplaceno', 7),
          ('Přednostně', 8),
-         ('Zrušeno', 9)
+         ('Zrušeno', 9),
+         ('Částečně vyfakturováno (DPZ/DPS)', 10)
      ) AS v(name, order_index)
      WHERE NOT EXISTS (
        SELECT 1

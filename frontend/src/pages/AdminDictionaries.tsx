@@ -210,8 +210,13 @@ function AdminDictionaries() {
 
   const deleteTextTemplate = async (id: number) => {
     if (!window.confirm('Opravdu smazat textaci?')) return;
-    await categoryService.deleteTextTemplate(id);
-    await loadData();
+    try {
+      setError('');
+      await categoryService.deleteTextTemplate(id);
+      await loadData();
+    } catch (e: any) {
+      setError(e?.response?.data?.error || 'Textaci se nepodařilo smazat');
+    }
   };
 
   const createCombination = async () => {
