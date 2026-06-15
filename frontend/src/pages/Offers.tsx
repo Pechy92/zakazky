@@ -65,8 +65,23 @@ function Offers() {
   const [saving, setSaving] = useState(false);
   const [printingOfferId, setPrintingOfferId] = useState<number | null>(null);
   
-  const today = new Date().toISOString().split('T')[0];
-  const twoWeeksLater = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const formatDateInput = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const addDaysToDateInput = (value: string, days: number) => {
+    if (!value) return '';
+    const [year, month, day] = value.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    date.setDate(date.getDate() + days);
+    return formatDateInput(date);
+  };
+
+  const today = formatDateInput(new Date());
+  const twoWeeksLater = addDaysToDateInput(today, 14);
   
   const [formData, setFormData] = useState<OfferFormData>({
     orderId: null,
@@ -336,6 +351,23 @@ function Offers() {
     });
   };
 
+  const handleIssueDateChange = (issueDate: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      issueDate,
+      validityDate: addDaysToDateInput(issueDate, 14),
+    }));
+  };
+
+  const handleWeakCurrentItemChange = (code: string, checked: boolean) => {
+    setFormData((prev) => ({
+      ...prev,
+      selectedWeakCurrentItems: checked
+        ? Array.from(new Set([...prev.selectedWeakCurrentItems, code]))
+        : prev.selectedWeakCurrentItems.filter((itemCode) => itemCode !== code),
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.orderId) {
@@ -587,9 +619,9 @@ function Offers() {
         size="xl"
       >
         <form onSubmit={handleSubmit} className="max-h-[80vh] overflow-y-auto">
-          <div className="space-y-4 p-1">
+          <div className="flex flex-col gap-4 p-1">
           {/* Základní informace */}
-          <div className="space-y-3">
+          <div className="space-y-3 order-1">
             <h3 className="text-sm font-semibold text-gray-900">Základní informace</h3>
             
             <div>
@@ -648,7 +680,7 @@ function Offers() {
           </div>
 
           {/* Slaboproud */}
-          <div className="border-t pt-3">
+          <div className="border-t pt-3 order-3">
             <div className="flex items-center mb-2">
               <input
                 type="checkbox"
@@ -668,33 +700,33 @@ function Offers() {
             </div>
             
             {formData.weakCurrentEnabled && (
-              <div>
-                <select
-                  multiple
-                  value={formData.selectedWeakCurrentItems}
-                  onChange={(e) => {
-                    const selected = Array.from(e.target.selectedOptions, option => option.value);
-                    setFormData({ ...formData, selectedWeakCurrentItems: selected });
-                  }}
-                  disabled={isViewMode}
-                  size={4}
-                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                >
-                  {weakCurrentItems.map((item) => (
-                    <option key={item.code} value={item.code} title={item.description}>
-                      {formatCodeLabel(item.code, item.description, item.name)}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-gray-500 mt-1">Podržte Ctrl/Cmd pro výběr více položek</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pl-6">
+                {weakCurrentItems.map((item) => (
+                  <label
+                    key={item.code}
+                    className="flex items-start gap-2 rounded-md border border-gray-200 px-3 py-2 text-sm hover:bg-gray-50"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={formData.selectedWeakCurrentItems.includes(item.code)}
+                      onChange={(e) => handleWeakCurrentItemChange(item.code, e.target.checked)}
+                      disabled={isViewMode}
+                      className="mt-0.5 h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded disabled:cursor-not-allowed"
+                    />
+                    <span>{formatCodeLabel(item.code, item.description, item.name)}</span>
+                  </label>
+                ))}
+                {weakCurrentItems.length === 0 && (
+                  <p className="text-xs text-gray-500">V číselníku zatím nejsou žádné položky slaboproudu.</p>
+                )}
               </div>
             )}
           </div>
 
           {/* Poznámka */}
-          <div className="border-t pt-3">
+          <div className="border-t pt-3 order-8">
             <label className="block text-xs font-medium text-gray-700 mb-1">
-              Poznámka
+              Interní poznámka
             </label>
             <textarea
               value={formData.note}
@@ -707,7 +739,7 @@ function Offers() {
           </div>
 
           {/* Textace */}
-          <div className="border-t pt-3 space-y-2">
+          <div className="border-t pt-3 space-y-2 order-6">
             <h3 className="text-xs font-semibold text-gray-900">Textace</h3>
             
             <div>
@@ -746,7 +778,7 @@ function Offers() {
           </div>
 
           {/* Kombinace */}
-          <div className="border-t pt-3 space-y-2">
+          <div className="border-t pt-3 space-y-2 order-2">
             <h3 className="text-xs font-semibold text-gray-900">Kombinace</h3>
             <p className="text-xs text-gray-600">
               Kombinace je oddělená od textace a upravuje se jako čistý text (bez HTML).
@@ -771,23 +803,42 @@ function Offers() {
             />
           </div>
 
-          {/* Datum vystavení */}
-          <div className="border-t pt-3">
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Datum vystavení *
-            </label>
-            <input
-              type="date"
-              value={formData.issueDate}
-              onChange={(e) => setFormData({ ...formData, issueDate: e.target.value })}
-              disabled={isViewMode}
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-              required={!isViewMode}
-            />
+          {/* Datum vystavení a platnost */}
+          <div className="border-t pt-3 order-9">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Datum vystavení *
+                </label>
+                <input
+                  type="date"
+                  value={formData.issueDate}
+                  onChange={(e) => handleIssueDateChange(e.target.value)}
+                  disabled={isViewMode}
+                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  required={!isViewMode}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Platnost nabídky do *
+                </label>
+                <input
+                  type="date"
+                  value={formData.validityDate}
+                  min={formData.issueDate}
+                  onChange={(e) => setFormData({ ...formData, validityDate: e.target.value })}
+                  disabled={isViewMode}
+                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  required={!isViewMode}
+                />
+                <p className="text-xs text-gray-500 mt-1">Automaticky 14 dní od data vystavení.</p>
+              </div>
+            </div>
           </div>
 
           {/* Cestovné */}
-          <div className="border-t pt-3">
+          <div className="border-t pt-3 order-4">
             <div className="flex items-center mb-2">
               <input
                 type="checkbox"
@@ -852,7 +903,7 @@ function Offers() {
           </div>
 
           {/* Kompletace */}
-          <div className="border-t pt-3">
+          <div className="border-t pt-3 order-5">
             <div className="flex items-center mb-2">
               <input
                 type="checkbox"
@@ -895,7 +946,7 @@ function Offers() {
           </div>
 
           {/* Položky nabídky */}
-          <div className="border-t pt-3">
+          <div className="border-t pt-3 order-7">
             <div className="flex justify-between items-center mb-2">
               <h3 className="text-xs font-medium text-gray-700">Položky nabídky</h3>
               {!isViewMode && (
@@ -969,7 +1020,7 @@ function Offers() {
             </div>
           </div>
 
-          <div className="flex justify-between pt-4 border-t">
+          <div className="flex justify-between pt-4 border-t order-10">
             <div>
               {editingOfferId && !isViewMode && (
                 <button
