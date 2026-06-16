@@ -16,6 +16,7 @@ import pdfRoutes from './routes/pdfs';
 import aresRoutes from './routes/ares';
 import pool from './config/database';
 import { apiLimiter, loginLimiter } from './middleware/rateLimit';
+import { DEFAULT_ORDER_STATUSES } from './services/statusWorkflow';
 
 dotenv.config();
 
@@ -86,7 +87,33 @@ const server = app.listen(PORT, '0.0.0.0', async () => {
   console.log(`🚀 Server běží na portu ${PORT}`);
   // Startup migrace — spustit jednou při startu, ne na každý request
   try {
+    const statusValues = DEFAULT_ORDER_STATUSES.map((_, index) => `($${index * 2 + 1}, $${index * 2 + 2})`).join(', ');
+    const statusParams = DEFAULT_ORDER_STATUSES.flatMap((status) => [status.name, status.orderIndex]);
+    await pool.query(
+      `INSERT INTO order_statuses (name, order_index)
+       SELECT v.name, v.order_index
+       FROM (VALUES ${statusValues}) AS v(name, order_index)
+       WHERE NOT EXISTS (
+         SELECT 1
+         FROM order_statuses os
+         WHERE LOWER(os.name) = LOWER(v.name)
+       )`,
+      statusParams
+    );
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE');
+    await pool.query('ALTER TABLE offers ADD COLUMN IF NOT EXISTS status_id INTEGER REFERENCES order_statuses(id)');
+    await pool.query(
+      `UPDATE offers
+       SET status_id = (
+         SELECT id
+         FROM order_statuses
+         WHERE lower(name) = lower($1)
+         ORDER BY id ASC
+         LIMIT 1
+       )
+       WHERE status_id IS NULL`,
+      ['Nabídka']
+    );
     await pool.query(
       `CREATE TABLE IF NOT EXISTS weak_current_items (
         id SERIAL PRIMARY KEY,

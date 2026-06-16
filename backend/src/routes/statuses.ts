@@ -1,32 +1,24 @@
 import express from 'express';
 import pool from '../config/database';
 import { authenticateToken, authorizeRoles } from '../middleware/auth';
+import { DEFAULT_ORDER_STATUSES } from '../services/statusWorkflow';
 
 const router = express.Router();
 
 const ensureDefaultStatuses = async () => {
+  const values = DEFAULT_ORDER_STATUSES.map((_, index) => `($${index * 2 + 1}, $${index * 2 + 2})`).join(', ');
+  const params = DEFAULT_ORDER_STATUSES.flatMap((status) => [status.name, status.orderIndex]);
+
   await pool.query(
     `INSERT INTO order_statuses (name, order_index)
      SELECT v.name, v.order_index
-     FROM (
-       VALUES
-         ('Nová zakázka', 0),
-         ('Nabídka', 1),
-         ('Rozpracované', 2),
-         ('Hotovo', 3),
-         ('Čeká se/oprava/úprava', 4),
-         ('Odevzdáno', 5),
-         ('K fakturaci', 6),
-         ('Nezaplaceno', 7),
-         ('Přednostně', 8),
-         ('Zrušeno', 9),
-         ('Částečně vyfakturováno (DPZ/DPS)', 10)
-     ) AS v(name, order_index)
+     FROM (VALUES ${values}) AS v(name, order_index)
      WHERE NOT EXISTS (
        SELECT 1
        FROM order_statuses os
        WHERE LOWER(os.name) = LOWER(v.name)
-     )`
+     )`,
+    params
   );
 };
 

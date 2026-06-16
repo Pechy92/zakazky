@@ -1,6 +1,13 @@
 import express from 'express';
 import pool from '../config/database';
 import { authenticateToken, authorizeRoles } from '../middleware/auth';
+import {
+  isCanceledStatus,
+  isInvoicedStatus,
+  isNewOrderStatus,
+  isToInvoiceStatus,
+  normalizeStatusName,
+} from '../services/statusWorkflow';
 
 const router = express.Router();
 
@@ -16,52 +23,68 @@ const getStatusIdByName = async (client: any, name: string) => {
   return result.rows[0]?.id as number | undefined;
 };
 
-const setOrderStatusToOfferPhaseIfNeeded = async (client: any, orderId: number) => {
-  const [newOrderStatusId, offerStatusId] = await Promise.all([
-    getStatusIdByName(client, 'Nová zakázka'),
-    getStatusIdByName(client, 'Nabídka'),
-  ]);
+const getDefaultOfferStatusId = async (client: any) => {
+  return (await getStatusIdByName(client, 'Nabídka')) || getStatusIdByName(client, 'Nová zakázka');
+};
 
-  if (!offerStatusId) return;
+const getPreferredStatusIdByNames = async (client: any, names: string[]) => {
+  for (const name of names) {
+    const statusId = await getStatusIdByName(client, name);
+    if (statusId) return statusId;
+  }
+  return undefined;
+};
 
-  if (newOrderStatusId) {
-    await client.query(
-      `UPDATE orders
-       SET status_id = $1
-       WHERE id = $2 AND status_id = $3`,
-      [offerStatusId, orderId, newOrderStatusId]
-    );
+const syncOrderStatusFromOffers = async (client: any, orderId: number) => {
+  const offersResult = await client.query(
+    `SELECT o.status_id, os.name AS status_name
+     FROM offers o
+     LEFT JOIN order_statuses os ON os.id = o.status_id
+     WHERE o.order_id = $1`,
+    [orderId]
+  );
+
+  const offerStatuses: string[] = offersResult.rows.map((row: any) => row.status_name).filter(Boolean);
+
+  if (offerStatuses.length === 0) {
+    const newStatusId = await getStatusIdByName(client, 'Nová zakázka');
+    if (newStatusId) {
+      await client.query('UPDATE orders SET status_id = $1 WHERE id = $2', [newStatusId, orderId]);
+    }
     return;
   }
+
+  let nextStatusId: number | undefined;
+  const allSameStatus = offerStatuses.every(
+    (statusName) => normalizeStatusName(statusName) === normalizeStatusName(offerStatuses[0])
+  );
+
+  if (offerStatuses.every(isInvoicedStatus)) {
+    nextStatusId = await getPreferredStatusIdByNames(client, ['Dokončeno', 'Hotovo']);
+  } else if (offerStatuses.some(isInvoicedStatus)) {
+    nextStatusId = await getPreferredStatusIdByNames(client, [
+      'Částečně vyfakturováno (DPZ/DPS)',
+      'Částečně vyfakturováno',
+    ]);
+  } else if (offerStatuses.some(isToInvoiceStatus)) {
+    nextStatusId = await getStatusIdByName(client, 'K fakturaci');
+  } else if (offerStatuses.every(isNewOrderStatus)) {
+    nextStatusId = await getStatusIdByName(client, 'Nová zakázka');
+  } else if (offerStatuses.every(isCanceledStatus)) {
+    nextStatusId = await getPreferredStatusIdByNames(client, ['Zrušeno', 'Zrušená']);
+  } else if (allSameStatus) {
+    nextStatusId = offersResult.rows[0]?.status_id;
+  } else {
+    nextStatusId = await getStatusIdByName(client, 'Nabídka');
+  }
+
+  if (!nextStatusId) return;
 
   await client.query(
     `UPDATE orders
      SET status_id = $1
      WHERE id = $2`,
-    [offerStatusId, orderId]
-  );
-};
-
-const setOrderStatusBackToNewIfNoOffers = async (client: any, orderId: number) => {
-  const countResult = await client.query(
-    'SELECT COUNT(*)::int AS count FROM offers WHERE order_id = $1',
-    [orderId]
-  );
-
-  if ((countResult.rows[0]?.count || 0) > 0) return;
-
-  const [newOrderStatusId, offerStatusId] = await Promise.all([
-    getStatusIdByName(client, 'Nová zakázka'),
-    getStatusIdByName(client, 'Nabídka'),
-  ]);
-
-  if (!newOrderStatusId || !offerStatusId) return;
-
-  await client.query(
-    `UPDATE orders
-     SET status_id = $1
-     WHERE id = $2 AND status_id = $3`,
-    [newOrderStatusId, orderId, offerStatusId]
+    [nextStatusId, orderId]
   );
 };
 
@@ -73,6 +96,8 @@ const mapOfferToResponse = (offer: any) => ({
   name: offer.name,
   mainCategoryCode: offer.main_category_code,
   subcategoryCode: offer.subcategory_code,
+  statusId: offer.status_id,
+  statusName: offer.status_name,
   issueDate: offer.issue_date,
   validityDate: offer.validity_date,
   travelCostsEnabled: offer.travel_costs_enabled,
@@ -112,6 +137,7 @@ router.get('/order/:orderId', authenticateToken, async (req, res) => {
     const result = await pool.query(
       `SELECT
          o.*,
+         os.name AS status_name,
          (
            COALESCE((SELECT SUM(oi.total_price) FROM offer_items oi WHERE oi.offer_id = o.id), 0)
            + CASE
@@ -127,6 +153,7 @@ router.get('/order/:orderId', authenticateToken, async (req, res) => {
              END
          ) AS total_price
        FROM offers o
+       LEFT JOIN order_statuses os ON os.id = o.status_id
        WHERE o.order_id = $1
        ORDER BY o.sequence_number`,
       [orderId]
@@ -144,7 +171,13 @@ router.get('/order/:orderId', authenticateToken, async (req, res) => {
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await pool.query('SELECT * FROM offers WHERE id = $1', [id]);
+    const result = await pool.query(
+      `SELECT o.*, os.name AS status_name
+       FROM offers o
+       LEFT JOIN order_statuses os ON os.id = o.status_id
+       WHERE o.id = $1`,
+      [id]
+    );
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Nabídka nenalezena' });
@@ -166,6 +199,7 @@ router.post('/', authenticateToken, async (req, res) => {
     
     const { orderId, items, issueDate, validityDate, ...offerData } = req.body;
     const userId = (req as any).user.id;
+    const statusId = offerData.statusId || await getDefaultOfferStatusId(client);
     
     // Získat poslední sequence_number pro danou zakázku
     const seqResult = await client.query(
@@ -176,15 +210,15 @@ router.post('/', authenticateToken, async (req, res) => {
     
     // Vytvořit nabídku
     const offerResult = await client.query(
-      `INSERT INTO offers (order_id, sequence_number, name, main_category_code, subcategory_code,
+      `INSERT INTO offers (order_id, sequence_number, name, main_category_code, subcategory_code, status_id,
         issue_date, validity_date, created_by_user_id, 
         travel_costs_enabled, travel_costs_km_quantity, travel_costs_km_price, travel_costs_hours_quantity, 
         travel_costs_hours_price, assembly_enabled, assembly_quantity, assembly_price,
         weak_current_enabled, selected_weak_current_items, note, text_template_id, custom_text_content)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
        RETURNING *`,
       [orderId, sequenceNumber, offerData.name, offerData.mainCategoryCode, offerData.subcategoryCode,
-       issueDate || new Date().toISOString().split('T')[0], validityDate, userId, 
+       statusId, issueDate || new Date().toISOString().split('T')[0], validityDate, userId,
        offerData.travelCostsEnabled || false, offerData.travelCostsKmQuantity || 0, offerData.travelCostsKmPrice || 0,
        offerData.travelCostsHoursQuantity || 0, offerData.travelCostsHoursPrice || 0,
        offerData.assemblyEnabled || false, offerData.assemblyQuantity || 0, offerData.assemblyPrice || 0,
@@ -206,8 +240,7 @@ router.post('/', authenticateToken, async (req, res) => {
       }
     }
 
-    // Jakmile vznikne nabídka, zakázka přejde z "Nová zakázka" do "Nabídka"
-    await setOrderStatusToOfferPhaseIfNeeded(client, Number(orderId));
+    await syncOrderStatusFromOffers(client, Number(orderId));
     
     await client.query('COMMIT');
     res.status(201).json(mapOfferToResponse(offer));
@@ -251,17 +284,17 @@ router.put('/:id', authenticateToken, async (req, res) => {
     const offerResult = await client.query(
       `UPDATE offers 
        SET name = $1, main_category_code = $2, subcategory_code = $3,
-           issue_date = $4, validity_date = $5, travel_costs_enabled = $6, 
-           travel_costs_km_quantity = $7, travel_costs_km_price = $8, 
-           travel_costs_hours_quantity = $9, travel_costs_hours_price = $10,
-           assembly_enabled = $11, assembly_quantity = $12, assembly_price = $13,
-           weak_current_enabled = $14, selected_weak_current_items = $15,
-           note = $16, text_template_id = $17, custom_text_content = $18,
+           status_id = $4, issue_date = $5, validity_date = $6, travel_costs_enabled = $7,
+           travel_costs_km_quantity = $8, travel_costs_km_price = $9,
+           travel_costs_hours_quantity = $10, travel_costs_hours_price = $11,
+           assembly_enabled = $12, assembly_quantity = $13, assembly_price = $14,
+           weak_current_enabled = $15, selected_weak_current_items = $16,
+           note = $17, text_template_id = $18, custom_text_content = $19,
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $19
+       WHERE id = $20
        RETURNING *`,
       [offerData.name, offerData.mainCategoryCode, offerData.subcategoryCode,
-       issueDate, validityDate, offerData.travelCostsEnabled || false, 
+       offerData.statusId || await getDefaultOfferStatusId(client), issueDate, validityDate, offerData.travelCostsEnabled || false,
        offerData.travelCostsKmQuantity || 0, offerData.travelCostsKmPrice || 0,
        offerData.travelCostsHoursQuantity || 0, offerData.travelCostsHoursPrice || 0,
        offerData.assemblyEnabled || false, offerData.assemblyQuantity || 0, 
@@ -288,6 +321,8 @@ router.put('/:id', authenticateToken, async (req, res) => {
         );
       }
     }
+
+    await syncOrderStatusFromOffers(client, Number(offerResult.rows[0].order_id));
     
     await client.query('COMMIT');
     res.json(mapOfferToResponse(offerResult.rows[0]));
@@ -320,9 +355,8 @@ router.delete('/:id', authenticateToken, authorizeRoles('admin', 'manager'), asy
       return res.status(404).json({ error: 'Nabídka nenalezena' });
     }
 
-    // Pokud byla smazána poslední nabídka, vrátit status zpět na "Nová zakázka"
     const deletedOrderId = Number(result.rows[0].order_id);
-    await setOrderStatusBackToNewIfNoOffers(client, deletedOrderId);
+    await syncOrderStatusFromOffers(client, deletedOrderId);
     
     await client.query('COMMIT');
     res.json({ message: 'Nabídka smazána' });

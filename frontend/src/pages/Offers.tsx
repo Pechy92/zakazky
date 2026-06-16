@@ -3,7 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { offerService } from '../services/offer.service';
 import { orderService } from '../services/order.service';
 import { categoryService } from '../services/category.service';
-import { Offer, Order, MainCategory, Subcategory, WeakCurrentItem, TextTemplate, CategoryCombination } from '../types';
+import { statusService } from '../services/status.service';
+import { Offer, Order, MainCategory, Subcategory, WeakCurrentItem, TextTemplate, CategoryCombination, OrderStatus } from '../types';
 import { format } from 'date-fns';
 import { cs } from 'date-fns/locale';
 import { FiPlus, FiTrash2, FiEye, FiEdit, FiPrinter } from 'react-icons/fi';
@@ -15,6 +16,7 @@ interface OfferFormData {
   name: string;
   mainCategoryCode: string;
   subcategoryCode: string;
+  statusId: number | null;
   issueDate: string;
   validityDate: string;
   travelCostsEnabled: boolean;
@@ -46,6 +48,7 @@ function Offers() {
   const COMBINATION_END = '<!--CS_COMBINATION_END-->';
   const TEMPLATE_START = '<!--CS_TEMPLATE_START-->';
   const TEMPLATE_END = '<!--CS_TEMPLATE_END-->';
+  const DEFAULT_OFFER_ITEM_NAME = 'Zpracování projektové dokumentace';
 
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -57,6 +60,7 @@ function Offers() {
   const [combinations, setCombinations] = useState<CategoryCombination[]>([]);
   const [weakCurrentItems, setWeakCurrentItems] = useState<WeakCurrentItem[]>([]);
   const [textTemplates, setTextTemplates] = useState<TextTemplate[]>([]);
+  const [statuses, setStatuses] = useState<OrderStatus[]>([]);
   const [categoriesError, setCategoriesError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -88,6 +92,7 @@ function Offers() {
     name: '',
     mainCategoryCode: '',
     subcategoryCode: '',
+    statusId: null,
     issueDate: today,
     validityDate: twoWeeksLater,
     travelCostsEnabled: false,
@@ -107,7 +112,7 @@ function Offers() {
   });
 
   const [items, setItems] = useState<OfferItemFormData[]>([
-    { name: '', description: '', quantity: '1', unitPrice: '0', totalPrice: '0' }
+    { name: DEFAULT_OFFER_ITEM_NAME, description: '', quantity: '1', unitPrice: '0', totalPrice: '0' }
   ]);
 
   const formatCodeLabel = (code?: string, description?: string, name?: string) => {
@@ -119,6 +124,21 @@ function Offers() {
       ? firstValue
       : `${firstValue} - ${secondValue}`;
   };
+
+  const parseCurrencyInput = (value: string) => {
+    const normalized = String(value || '')
+      .replace(/\s/g, '')
+      .replace(/Kč/gi, '')
+      .replace(',', '.')
+      .replace(/[^\d.-]/g, '');
+    return parseFloat(normalized) || 0;
+  };
+
+  const formatCurrencyInput = (value: string | number) =>
+    `${new Intl.NumberFormat('cs-CZ', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    }).format(parseCurrencyInput(String(value)))} Kč`;
 
   const escapeHtml = (value: string) =>
     value
@@ -210,6 +230,7 @@ function Offers() {
 
     loadOrders();
     loadCategories();
+    loadStatuses();
 
     // Zkontrolovat URL parametr orderId
     if (orderIdParam) {
@@ -246,6 +267,19 @@ function Offers() {
     } catch (error) {
       console.error('Failed to load categories:', error);
       setCategoriesError(true);
+    }
+  };
+
+  const loadStatuses = async () => {
+    try {
+      const data = await statusService.getAll();
+      setStatuses(data);
+      setFormData((prev) => ({
+        ...prev,
+        statusId: prev.statusId || data.find((status) => status.name.toLowerCase() === 'nabídka')?.id || null,
+      }));
+    } catch (error) {
+      console.error('Failed to load statuses:', error);
     }
   };
 
@@ -297,7 +331,7 @@ function Offers() {
     // Auto-calculate total price
     if (field === 'quantity' || field === 'unitPrice') {
       const quantity = parseFloat(field === 'quantity' ? value : newItems[index].quantity) || 0;
-      const unitPrice = parseFloat(field === 'unitPrice' ? value : newItems[index].unitPrice) || 0;
+      const unitPrice = parseCurrencyInput(field === 'unitPrice' ? value : newItems[index].unitPrice);
       newItems[index].totalPrice = (quantity * unitPrice).toFixed(2);
     }
     
@@ -393,6 +427,7 @@ function Offers() {
         name: formData.name,
         mainCategoryCode: formData.mainCategoryCode || undefined,
         subcategoryCode: formData.subcategoryCode || undefined,
+        statusId: formData.statusId ?? undefined,
         issueDate: formData.issueDate,
         validityDate: formData.validityDate,
         travelCostsEnabled: formData.travelCostsEnabled,
@@ -412,8 +447,8 @@ function Offers() {
           name: item.name,
           description: item.description,
           quantity: parseFloat(item.quantity) || 0,
-          unitPrice: parseFloat(item.unitPrice) || 0,
-          totalPrice: parseFloat(item.totalPrice) || 0,
+          unitPrice: parseCurrencyInput(item.unitPrice),
+          totalPrice: parseCurrencyInput(item.totalPrice),
           orderIndex: index,
         })),
       };
@@ -449,6 +484,7 @@ function Offers() {
         name: offer.name || '',
         mainCategoryCode: offer.mainCategoryCode || '',
         subcategoryCode: offer.subcategoryCode || '',
+        statusId: offer.statusId || statuses.find((status) => status.name.toLowerCase() === 'nabídka')?.id || null,
         issueDate: offer.issueDate,
         validityDate: offer.validityDate,
         travelCostsEnabled: offer.travelCostsEnabled,
@@ -502,8 +538,7 @@ function Offers() {
     setPrintingOfferId(offerId);
     try {
       const result = await offerService.generatePdf(offerId);
-      const url = offerService.getPdfPublicUrl(result.fileUrl);
-      window.open(url, '_blank', 'noopener,noreferrer');
+      offerService.downloadPdf(result.fileUrl);
     } catch (error) {
       const message = (error as any)?.response?.data?.error || 'Nepodařilo se vygenerovat PDF nabídky';
       alert(message);
@@ -521,6 +556,7 @@ function Offers() {
       name: '',
       mainCategoryCode: '',
       subcategoryCode: '',
+      statusId: statuses.find((status) => status.name.toLowerCase() === 'nabídka')?.id || null,
       issueDate: today,
       validityDate: twoWeeksLater,
       travelCostsEnabled: false,
@@ -538,7 +574,7 @@ function Offers() {
       customTextContent: '',
       combinationTextContent: '',
     });
-    setItems([{ name: '', description: '', quantity: '1', unitPrice: '0', totalPrice: '0' }]);
+    setItems([{ name: DEFAULT_OFFER_ITEM_NAME, description: '', quantity: '1', unitPrice: '0', totalPrice: '0' }]);
   };
 
   const selectedMainCategory = mainCategories.find((cat) => cat.code === formData.mainCategoryCode);
@@ -558,7 +594,11 @@ function Offers() {
         <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Nabídky</h1>
         <button 
           onClick={() => {
-            setFormData({ ...formData, orderId: selectedOrderId });
+            setFormData({
+              ...formData,
+              orderId: selectedOrderId,
+              statusId: formData.statusId || statuses.find((status) => status.name.toLowerCase() === 'nabídka')?.id || null,
+            });
             setIsModalOpen(true);
           }}
           disabled={!selectedOrderId}
@@ -676,6 +716,25 @@ function Offers() {
                   ))}
                 </select>
               </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Stav nabídky
+              </label>
+              <select
+                value={formData.statusId || ''}
+                onChange={(e) => setFormData({ ...formData, statusId: e.target.value ? parseInt(e.target.value, 10) : null })}
+                disabled={isViewMode}
+                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              >
+                <option value="">-- Vyberte stav --</option>
+                {statuses.map((status) => (
+                  <option key={status.id} value={status.id}>
+                    {status.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -987,11 +1046,12 @@ function Offers() {
                     </div>
                     <div>
                       <input
-                        type="number"
-                        step="0.01"
+                        type="text"
+                        inputMode="decimal"
                         placeholder="Jedn. cena"
                         value={item.unitPrice}
                         onChange={(e) => handleItemChange(index, 'unitPrice', e.target.value)}
+                        onBlur={(e) => handleItemChange(index, 'unitPrice', formatCurrencyInput(e.target.value))}
                         disabled={isViewMode}
                         className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                       />
@@ -1000,7 +1060,7 @@ function Offers() {
                       <input
                         type="text"
                         placeholder="Celkem"
-                        value={item.totalPrice}
+                        value={formatCurrencyInput(item.totalPrice)}
                         readOnly
                         className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md bg-gray-50"
                       />
@@ -1100,6 +1160,9 @@ function OffersList({ offers, printingOfferId, onView, onEdit, onPrint }: {
                 <p className="text-xs text-gray-500">
                   Platnost do: {format(new Date(offer.validityDate), 'dd.MM.yyyy', { locale: cs })}
                 </p>
+                <p className="text-xs text-gray-500">
+                  Stav: <span className="font-medium text-gray-700">{offer.statusName || '—'}</span>
+                </p>
                 <div className="flex gap-2 mt-1">
                   {offer.travelCostsEnabled && <span className="text-xs text-green-600">✓ Cestovné</span>}
                   {offer.assemblyEnabled && <span className="text-xs text-green-600">✓ Kompletace</span>}
@@ -1143,6 +1206,7 @@ function OffersList({ offers, printingOfferId, onView, onEdit, onPrint }: {
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Název / Verze</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Datum vystavení</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Platnost do</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stav</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cestovné</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kompletace</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Akce</th>
@@ -1160,6 +1224,9 @@ function OffersList({ offers, printingOfferId, onView, onEdit, onPrint }: {
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
               {format(new Date(offer.validityDate), 'dd.MM.yyyy', { locale: cs })}
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              {offer.statusName || '—'}
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
               {offer.travelCostsEnabled ? <span className="text-green-600">✓ Ano</span> : <span className="text-gray-400">Ne</span>}

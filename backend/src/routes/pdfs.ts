@@ -280,19 +280,19 @@ function generateOfferHTML(
 
   const selectedWeakCurrentCodeSet = new Set(selectedWeakCurrentCodes);
 
-  const weakCurrentIncludedLines = weakItems
+  const weakCurrentIncludedLines = offer.weak_current_enabled ? weakItems
     .filter((item) => selectedWeakCurrentCodeSet.has(item.code))
-    .map((item) => `Slaboproud: ${item.label}`);
+    .map((item) => item.label) : [];
 
-  const weakCurrentExcludedLines = weakItems
+  const weakCurrentExcludedLines = offer.weak_current_enabled ? weakItems
     .filter((item) => !selectedWeakCurrentCodeSet.has(item.code))
-    .map((item) => `Slaboproud: ${item.label}`);
+    .map((item) => item.label) : [];
 
   // Fallback pro starší nabídky: pokud je v nabídce kód, který už v číselníku není,
   // vytisknout ho mezi zahrnuté, aby informace nezmizela.
   selectedWeakCurrentCodes.forEach((code: string) => {
     if (!weakItems.some((item) => item.code === code)) {
-      weakCurrentIncludedLines.push(`Slaboproud: ${code}`);
+      weakCurrentIncludedLines.push(code);
     }
   });
 
@@ -321,25 +321,47 @@ function generateOfferHTML(
   }
   const logoUrl = logoSource || '';
 
-  const itemsHtml = items.map((item) => `
+  const isProjectDocumentationItem = (name: string | null | undefined) =>
+    String(name || '').toLowerCase().includes('zpracování projektové dokumentace');
+
+  const itemsHtml = items.map((item) => {
+    const descriptionParts = [
+      item.description ? escapeHtml(item.description) : '',
+      isProjectDocumentationItem(item.name) ? combinationContent : '',
+    ].filter(Boolean);
+
+    return `
       <tr>
         <td>
           <strong>${escapeHtml(item.name || '')}</strong>
-          ${item.description ? `<div class="item-description">${escapeHtml(item.description)}</div>` : ''}
+          ${descriptionParts.length > 0 ? `<div class="item-description">${descriptionParts.join('<br>')}</div>` : ''}
         </td>
         <td>${formatNumber(Number(item.quantity) || 0)}</td>
         <td>${formatNumber(Number(item.unit_price) || 0)} Kč</td>
         <td>${formatNumber(Number(item.total_price) || 0)} Kč</td>
       </tr>
-    `).join('');
+    `;
+  }).join('');
+
+  const travelKmCosts =
+    (Number(offer.travel_costs_km_quantity) || 0) * (Number(offer.travel_costs_km_price) || 0);
+  const travelHourCosts =
+    (Number(offer.travel_costs_hours_quantity) || 0) * (Number(offer.travel_costs_hours_price) || 0);
 
   const extraCostsHtml = `
-    ${travelCosts > 0 ? `
+    ${travelKmCosts > 0 ? `
       <tr>
-        <td><strong>Cestovní náklady</strong><div class="item-description">${formatNumber(Number(offer.travel_costs_km_quantity) || 0)} km x ${formatNumber(Number(offer.travel_costs_km_price) || 0)} Kč, ${formatNumber(Number(offer.travel_costs_hours_quantity) || 0)} h x ${formatNumber(Number(offer.travel_costs_hours_price) || 0)} Kč</div></td>
-        <td>1</td>
-        <td>${formatNumber(travelCosts)} Kč</td>
-        <td>${formatNumber(travelCosts)} Kč</td>
+        <td><strong>Cestovní náklady (km)</strong></td>
+        <td>${formatNumber(Number(offer.travel_costs_km_quantity) || 0)}</td>
+        <td>${formatNumber(Number(offer.travel_costs_km_price) || 0)} Kč</td>
+        <td>${formatNumber(travelKmCosts)} Kč</td>
+      </tr>` : ''}
+    ${travelHourCosts > 0 ? `
+      <tr>
+        <td><strong>Cestovní náklady (hod)</strong></td>
+        <td>${formatNumber(Number(offer.travel_costs_hours_quantity) || 0)}</td>
+        <td>${formatNumber(Number(offer.travel_costs_hours_price) || 0)} Kč</td>
+        <td>${formatNumber(travelHourCosts)} Kč</td>
       </tr>` : ''}
     ${assemblyCosts > 0 ? `
       <tr>
@@ -524,9 +546,9 @@ function generateOfferHTML(
           </div>
 
           <div class="summary-notes">
-            ${combinationContent || ''}
-            ${weakCurrentIncludedLines.length > 0 ? `<p><strong>Slaboproud zahrnuje:</strong></p>${weakCurrentIncludedLines.map((line: string) => `<p>${escapeHtml(line)}</p>`).join('')}` : ''}
-            ${weakCurrentExcludedLines.length > 0 ? `<p><strong>Slaboproud nezahrnuje:</strong></p>${weakCurrentExcludedLines.map((line: string) => `<p>${escapeHtml(line)}</p>`).join('')}` : ''}
+            ${!items.some((item) => isProjectDocumentationItem(item.name)) ? combinationContent || '' : ''}
+            ${weakCurrentIncludedLines.length > 0 ? `<p>Slaboproudé rozvody zahrnují: ${escapeHtml(weakCurrentIncludedLines.join(', '))}</p>` : ''}
+            ${weakCurrentExcludedLines.length > 0 ? `<p>Slaboproudé rozvody nezahrnují: ${escapeHtml(weakCurrentExcludedLines.join(', '))}</p>` : ''}
             ${templateContent || ''}
           </div>
         </div>
@@ -580,7 +602,7 @@ router.get('/file/:filename', (req: express.Request, res: express.Response) => {
   }
 
   res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   fsSync.createReadStream(resolvedFilePath).pipe(res);
 });
 

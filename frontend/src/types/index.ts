@@ -55,6 +55,8 @@ export interface Offer {
   name?: string;
   mainCategoryCode?: string;
   subcategoryCode?: string;
+  statusId?: number;
+  statusName?: string;
   issueDate: string;
   validityDate: string;
   travelCostsEnabled: boolean;

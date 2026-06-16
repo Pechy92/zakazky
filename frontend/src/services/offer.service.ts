@@ -68,4 +68,17 @@ export const offerService = {
     const token = localStorage.getItem('token') || '';
     return `${backendBase}/api/pdfs/file/${encodeURIComponent(filename)}?token=${encodeURIComponent(token)}`;
   },
+
+  downloadPdf(fileUrl: string) {
+    const url = this.getPdfPublicUrl(fileUrl);
+    if (!url) return;
+
+    const filename = fileUrl.split('/').pop() || 'nabidka.pdf';
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  },
 };

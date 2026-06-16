@@ -21,6 +21,25 @@ interface OrderFormData {
   totalPrice: string;
 }
 
+const normalizeStatusName = (name?: string) =>
+  String(name || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+const getStatusClassName = (name?: string) => {
+  const normalized = normalizeStatusName(name);
+  if (normalized.includes('fakturaci')) return 'bg-rose-100 text-rose-800';
+  if (normalized.includes('dokonc') || normalized.includes('hotovo') || normalized.includes('vyfakturov')) return 'bg-gray-900 text-white';
+  if (normalized.includes('nabidka')) return 'bg-sky-100 text-sky-800';
+  if (normalized.includes('nova zakazka')) return 'bg-emerald-100 text-emerald-800';
+  if (normalized.includes('zrus')) return 'bg-gray-100 text-gray-700';
+  if (normalized.includes('prednost')) return 'bg-amber-100 text-amber-800';
+  if (normalized.includes('rozprac')) return 'bg-violet-100 text-violet-800';
+  return 'bg-blue-100 text-blue-800';
+};
+
 function Orders() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -35,6 +54,7 @@ function Orders() {
   const [saving, setSaving] = useState(false);
   const [updatingStatusOrderId, setUpdatingStatusOrderId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilterId, setStatusFilterId] = useState<number | ''>('');
   const [formData, setFormData] = useState<OrderFormData>({
     number: '',
     title: '',
@@ -323,6 +343,7 @@ function Orders() {
 
   const normalizedSearch = searchTerm.trim().toLowerCase();
   const filteredOrders = orders.filter((order) => {
+    if (statusFilterId && order.statusId !== statusFilterId) return false;
     if (!normalizedSearch) return true;
     return [
       order.title,
@@ -363,6 +384,21 @@ function Orders() {
           placeholder="Hledat podle názvu, čísla zakázky, zákazníka, telefonu nebo e-mailu kontaktu"
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
         />
+        <div className="mt-3">
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">Filtr podle stavu</label>
+          <select
+            value={statusFilterId}
+            onChange={(e) => setStatusFilterId(e.target.value ? parseInt(e.target.value, 10) : '')}
+            className="w-full md:w-72 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="">Všechny stavy</option>
+            {statuses.map((status) => (
+              <option key={status.id} value={status.id}>
+                {status.name}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <Modal
@@ -768,6 +804,10 @@ function OrdersList({
       onMouseDown={(e) => e.stopPropagation()}
       className={compact ? 'inline-block' : 'w-full'}
     >
+      {(() => {
+        const statusName = statuses.find((status) => status.id === order.statusId)?.name || order.statusName;
+        const colorClassName = getStatusClassName(statusName);
+        return (
       <select
         value={order.statusId || ''}
         disabled={updatingStatusOrderId === order.id || statuses.length === 0}
@@ -777,8 +817,8 @@ function OrdersList({
           void onStatusChange(order.id, parseInt(value));
         }}
         className={compact
-          ? 'px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded border-0 focus:ring-2 focus:ring-primary-500 disabled:opacity-50'
-          : 'w-full px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded border-0 focus:ring-2 focus:ring-primary-500 disabled:opacity-50'}
+          ? `px-2 py-1 text-xs font-medium rounded border-0 focus:ring-2 focus:ring-primary-500 disabled:opacity-50 ${colorClassName}`
+          : `w-full px-2 py-1 text-xs font-medium rounded border-0 focus:ring-2 focus:ring-primary-500 disabled:opacity-50 ${colorClassName}`}
       >
         {statuses.map((status) => (
           <option key={status.id} value={status.id}>
@@ -786,6 +826,8 @@ function OrdersList({
           </option>
         ))}
       </select>
+        );
+      })()}
     </div>
   );
 

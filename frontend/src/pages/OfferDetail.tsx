@@ -186,8 +186,7 @@ function OfferDetail() {
     setPrinting(true);
     try {
       const result = await offerService.generatePdf(offer.id);
-      const url = offerService.getPdfPublicUrl(result.fileUrl);
-      window.open(url, '_blank', 'noopener,noreferrer');
+      offerService.downloadPdf(result.fileUrl);
       await loadGeneratedPdfs(offer.id);
     } catch (error) {
       const message = (error as any)?.response?.data?.error || 'Nepodařilo se vygenerovat PDF nabídky';
@@ -252,6 +251,10 @@ function OfferDetail() {
               <div>
                 <p className="text-sm text-gray-500">Specifikace</p>
                 <p className="text-sm font-medium text-gray-900 mt-1">{getSubcategoryLabel()}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Stav nabídky</p>
+                <p className="text-sm font-medium text-gray-900 mt-1">{offer.statusName || '—'}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Datum vystavení</p>
