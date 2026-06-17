@@ -58,7 +58,6 @@ function AdminDictionaries() {
   const [statuses, setStatuses] = useState<OrderStatus[]>([]);
 
   const [newCode, setNewCode] = useState('');
-  const [newDescription, setNewDescription] = useState('');
   const [newWeakIsIncluded, setNewWeakIsIncluded] = useState(true);
   const [newTemplateName, setNewTemplateName] = useState('');
   const [newTemplateContent, setNewTemplateContent] = useState('');
@@ -70,7 +69,6 @@ function AdminDictionaries() {
 
   const [editingKey, setEditingKey] = useState<string | number | null>(null);
   const [editName, setEditName] = useState('');
-  const [editDescription, setEditDescription] = useState('');
   const [editWeakIsIncluded, setEditWeakIsIncluded] = useState(true);
   const [editContent, setEditContent] = useState('');
   const [editMainCode, setEditMainCode] = useState('');
@@ -109,7 +107,6 @@ function AdminDictionaries() {
   const startEdit = (
     key: string | number,
     name: string,
-    description = '',
     content = '',
     order = '',
     mainCode = '',
@@ -118,7 +115,6 @@ function AdminDictionaries() {
   ) => {
     setEditingKey(key);
     setEditName(name);
-    setEditDescription(description || '');
     setEditWeakIsIncluded(weakIsIncluded);
     setEditContent(content || '');
     setEditOrder(order ? String(order) : '');
@@ -129,7 +125,6 @@ function AdminDictionaries() {
   const cancelEdit = () => {
     setEditingKey(null);
     setEditName('');
-    setEditDescription('');
     setEditWeakIsIncluded(true);
     setEditContent('');
     setEditMainCode('');
@@ -140,10 +135,9 @@ function AdminDictionaries() {
   const createCategoryItem = async (type: 'main' | 'sub' | 'weak') => {
     if (!newCode.trim()) return;
 
-    const payload: { code: string; name: string; description: string; isIncluded?: boolean } = {
+    const payload: { code: string; name: string; isIncluded?: boolean } = {
       code: newCode.trim(),
       name: newCode.trim(),
-      description: newDescription.trim(),
     };
 
     if (type === 'weak') {
@@ -155,15 +149,13 @@ function AdminDictionaries() {
     if (type === 'weak') await categoryService.createWeakCurrentItem(payload);
 
     setNewCode('');
-    setNewDescription('');
     setNewWeakIsIncluded(true);
     await loadData();
   };
 
   const updateCategoryItem = async (type: 'main' | 'sub' | 'weak', code: string) => {
-    const payload: { name: string; description: string; isIncluded?: boolean } = {
+    const payload: { name: string; isIncluded?: boolean } = {
       name: editName.trim() || code,
-      description: editDescription.trim(),
     };
 
     if (type === 'weak') {
@@ -297,7 +289,6 @@ function AdminDictionaries() {
     <div className="space-y-4">
       <div className="bg-white rounded-lg shadow p-4">
         <h1 className="text-xl font-semibold text-gray-900">Správa číselníků</h1>
-        <p className="text-sm text-gray-600">Hodnota1 = kód, Hodnota2 = vysvětlení/popis.</p>
       </div>
 
       {error && <div className="bg-red-50 text-red-700 text-sm p-3 rounded-md">{error}</div>}
@@ -325,19 +316,12 @@ function AdminDictionaries() {
 
           {!loading && (activeTab === 'main' || activeTab === 'sub' || activeTab === 'weak') && (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <input
                   type="text"
                   placeholder="Hodnota1 (kód)"
                   value={newCode}
                   onChange={(e) => setNewCode(e.target.value)}
-                  className="px-2 py-1.5 text-sm border border-gray-300 rounded-md"
-                />
-                <input
-                  type="text"
-                  placeholder="Hodnota2 (vysvětlení)"
-                  value={newDescription}
-                  onChange={(e) => setNewDescription(e.target.value)}
                   className="px-2 py-1.5 text-sm border border-gray-300 rounded-md"
                 />
                 {activeTab === 'weak' ? (
@@ -356,7 +340,7 @@ function AdminDictionaries() {
                 <button
                   type="button"
                   onClick={() => createCategoryItem(activeTab as 'main' | 'sub' | 'weak')}
-                  className="md:col-span-3 px-3 py-1.5 text-sm bg-primary-600 text-white rounded-md hover:bg-primary-700"
+                  className="md:col-span-2 px-3 py-1.5 text-sm bg-primary-600 text-white rounded-md hover:bg-primary-700"
                 >
                   Přidat položku
                 </button>
@@ -366,7 +350,6 @@ function AdminDictionaries() {
                 <thead>
                   <tr className="text-left border-b">
                     <th className="py-2 pr-2">Kód</th>
-                    <th className="py-2 pr-2">Vysvětlení</th>
                     {activeTab === 'weak' && <th className="py-2 pr-2">PDF sekce</th>}
                     <th className="py-2">Akce</th>
                   </tr>
@@ -375,18 +358,6 @@ function AdminDictionaries() {
                   {(activeTab === 'main' ? mainCategories : activeTab === 'sub' ? subcategories : weakCurrentItems).map((item) => (
                     <tr key={item.code} className="border-b">
                       <td className="py-2 pr-2 font-medium">{item.code}</td>
-                      <td className="py-2 pr-2">
-                        {editingKey === item.code ? (
-                          <input
-                            type="text"
-                            value={editDescription}
-                            onChange={(e) => setEditDescription(e.target.value)}
-                            className="px-2 py-1 text-sm border border-gray-300 rounded-md w-full"
-                          />
-                        ) : (
-                          item.description || ''
-                        )}
-                      </td>
                       {activeTab === 'weak' && (
                         <td className="py-2 pr-2">
                           {editingKey === item.code ? (
@@ -430,7 +401,6 @@ function AdminDictionaries() {
                                 startEdit(
                                   item.code,
                                   item.name,
-                                  item.description || '',
                                   '',
                                   '',
                                   '',
@@ -542,7 +512,7 @@ function AdminDictionaries() {
                           <>
                             <button
                               type="button"
-                              onClick={() => startEdit(item.id, item.name, '', item.htmlContent)}
+                              onClick={() => startEdit(item.id, item.name, item.htmlContent)}
                               className="text-xs px-2 py-1 bg-blue-600 text-white rounded"
                             >
                               Upravit
@@ -693,7 +663,7 @@ function AdminDictionaries() {
                             <button
                               type="button"
                               onClick={() =>
-                                startEdit(item.id, '', '', htmlToPlainText(item.htmlContent), '', item.mainCategoryCode, item.subcategoryCode)
+                                startEdit(item.id, '', htmlToPlainText(item.htmlContent), '', item.mainCategoryCode, item.subcategoryCode)
                               }
                               className="text-xs px-2 py-1 bg-blue-600 text-white rounded"
                             >
@@ -799,7 +769,7 @@ function AdminDictionaries() {
                           <>
                             <button
                               type="button"
-                              onClick={() => startEdit(item.id, item.name, '', '', String(item.orderIndex))}
+                              onClick={() => startEdit(item.id, item.name, '', String(item.orderIndex))}
                               className="text-xs px-2 py-1 bg-blue-600 text-white rounded"
                             >
                               Upravit

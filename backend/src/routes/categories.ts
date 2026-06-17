@@ -64,8 +64,8 @@ router.put('/main/:code', authenticateToken, authorizeRoles('admin', 'manager'),
     const { name, description } = req.body;
 
     const result = await pool.query(
-      'UPDATE main_categories SET name = $1, description = $2 WHERE code = $3 RETURNING *',
-      [name || code, description || null, code]
+      'UPDATE main_categories SET name = $1, description = COALESCE($2, description) WHERE code = $3 RETURNING *',
+      [name || code, description === undefined ? null : description || null, code]
     );
 
     if (result.rowCount === 0) {
@@ -133,8 +133,8 @@ router.put('/sub/:code', authenticateToken, authorizeRoles('admin', 'manager'), 
     const { name, description } = req.body;
 
     const result = await pool.query(
-      'UPDATE subcategories SET name = $1, description = $2 WHERE code = $3 RETURNING *',
-      [name || code, description || null, code]
+      'UPDATE subcategories SET name = $1, description = COALESCE($2, description) WHERE code = $3 RETURNING *',
+      [name || code, description === undefined ? null : description || null, code]
     );
 
     if (result.rowCount === 0) {
@@ -394,12 +394,12 @@ router.put('/weak-current/:code', authenticateToken, authorizeRoles('admin', 'ma
     const shouldUpdateIncluded = typeof isIncluded === 'boolean';
     const result = shouldUpdateIncluded
       ? await pool.query(
-          'UPDATE weak_current_items SET name = $1, description = $2, is_included = $3 WHERE code = $4 RETURNING *',
-          [name || code, description || null, isIncluded, code]
+          'UPDATE weak_current_items SET name = $1, description = COALESCE($2, description), is_included = $3 WHERE code = $4 RETURNING *',
+          [name || code, description === undefined ? null : description || null, isIncluded, code]
         )
       : await pool.query(
-          'UPDATE weak_current_items SET name = $1, description = $2 WHERE code = $3 RETURNING *',
-          [name || code, description || null, code]
+          'UPDATE weak_current_items SET name = $1, description = COALESCE($2, description) WHERE code = $3 RETURNING *',
+          [name || code, description === undefined ? null : description || null, code]
         );
 
     if (result.rowCount === 0) {
