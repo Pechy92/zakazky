@@ -6,20 +6,14 @@ import { DEFAULT_ORDER_STATUSES } from '../services/statusWorkflow';
 const router = express.Router();
 
 const ensureDefaultStatuses = async () => {
-  const values = DEFAULT_ORDER_STATUSES.map((_, index) => `($${index * 2 + 1}, $${index * 2 + 2})`).join(', ');
-  const params = DEFAULT_ORDER_STATUSES.flatMap((status) => [status.name, status.orderIndex]);
-
-  await pool.query(
-    `INSERT INTO order_statuses (name, order_index)
-     SELECT v.name, v.order_index
-     FROM (VALUES ${values}) AS v(name, order_index)
-     WHERE NOT EXISTS (
-       SELECT 1
-       FROM order_statuses os
-       WHERE LOWER(os.name) = LOWER(v.name)
-     )`,
-    params
-  );
+  for (const status of DEFAULT_ORDER_STATUSES) {
+    await pool.query(
+      `INSERT INTO order_statuses (name, order_index)
+       VALUES ($1, $2)
+       ON CONFLICT (name) DO NOTHING`,
+      [status.name, status.orderIndex]
+    );
+  }
 };
 
 // Získat všechny stavy
